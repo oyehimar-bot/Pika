@@ -3,6 +3,8 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
+  Receipt,
+  BarChart3,
   Shield,
   Settings,
   ChevronLeft,
@@ -22,6 +24,8 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/pos', label: 'Point of Sale', icon: ShoppingCart },
+  { to: '/receipts', label: 'Receipt History', icon: Receipt },
+  { to: '/sales', label: 'Sales Analytics', icon: BarChart3 },
   { to: '/audit', label: 'Audit Trail', icon: Shield },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]

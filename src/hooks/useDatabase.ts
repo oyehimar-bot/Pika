@@ -5,6 +5,8 @@ import {
   getInventoryValuation,
   getExpiringBatches,
   getTodaySalesSummary,
+  searchReceipts,
+  getComprehensiveSalesAnalytics,
 } from '@/db'
 import type {
   ProductWithStock,
@@ -12,6 +14,10 @@ import type {
   ExpiryWarning,
   AuditLog,
   BusinessMode,
+  ReceiptSnapshot,
+  ReceiptFilterOptions,
+  SalesTimeframePreset,
+  SalesAnalyticsResult,
 } from '@/db'
 
 /**
@@ -78,4 +84,27 @@ export function useProductBatches(productId: number | undefined) {
     [productId]
   )
 }
+
+/** Live query: search/filtered receipts history */
+export function useReceipts(
+  filters: ReceiptFilterOptions = {}
+): ReceiptSnapshot[] | undefined {
+  return useLiveQuery(
+    () => searchReceipts(filters),
+    [filters.query, filters.startDate?.toISOString(), filters.endDate?.toISOString(), filters.paymentMethod]
+  )
+}
+
+/** Live query: comprehensive sales analytics (daily & monthly) */
+export function useSalesAnalytics(
+  preset: SalesTimeframePreset = 'this_month',
+  customStart?: Date | null,
+  customEnd?: Date | null
+): SalesAnalyticsResult | undefined {
+  return useLiveQuery(
+    () => getComprehensiveSalesAnalytics(preset, customStart, customEnd),
+    [preset, customStart?.toISOString(), customEnd?.toISOString()]
+  )
+}
+
 

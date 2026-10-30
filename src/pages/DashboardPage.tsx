@@ -8,12 +8,15 @@ import {
   Clock,
   ArrowRight,
   ShieldCheck,
+  Receipt,
+  BarChart3,
 } from 'lucide-react'
 import {
   useInventoryValuation,
   useTodaySales,
   useProducts,
   useExpiringBatches,
+  useSalesAnalytics,
 } from '@/hooks/useDatabase'
 import { useAppSettings } from '@/context/AppSettingsContext'
 import { formatCurrency, formatNumber } from '@/utils/currency'
@@ -23,6 +26,7 @@ export function DashboardPage() {
   const todaySales = useTodaySales()
   const products = useProducts()
   const expiringBatches = useExpiringBatches(14)
+  const salesAnalytics = useSalesAnalytics('this_month')
   const { showExpiry, storeName, businessMode, isNoExpiry } = useAppSettings()
 
   const bannerStyle = useMemo(() => {
@@ -180,6 +184,20 @@ export function DashboardPage() {
               <ShoppingCart className="w-4 h-4" />
               Launch POS Checkout
             </Link>
+            <Link
+              to="/sales"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors backdrop-blur-sm border border-white/20"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Sales Analytics
+            </Link>
+            <Link
+              to="/receipts"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors backdrop-blur-sm border border-white/20"
+            >
+              <Receipt className="w-4 h-4" />
+              Receipt History
+            </Link>
           </div>
         </div>
         {/* Decorative elements */}
@@ -227,6 +245,91 @@ export function DashboardPage() {
             </div>
           )
         })}
+      </div>
+
+      {/* Sales & Revenue Analytics Summary Widget */}
+      <div className="p-6 rounded-3xl bg-gradient-to-br from-surface-50 to-white dark:from-surface-900/90 dark:to-surface-800/40 border border-surface-200 dark:border-surface-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-surface-200 dark:border-surface-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-surface-900 dark:text-white">
+                Sales & Profit Analytics Overview
+              </h2>
+              <p className="text-xs text-surface-500 dark:text-surface-400">
+                Live daily checkout velocity and monthly FIFO net profit performance
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/receipts"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-200 text-xs font-semibold hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors shadow-sm"
+            >
+              <Receipt className="w-3.5 h-3.5 text-purple-500" />
+              <span>Receipt History</span>
+            </Link>
+            <Link
+              to="/sales"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-500 transition-all shadow-md shadow-purple-600/20"
+            >
+              <span>View Full Analytics</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Quick summary comparison grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+            <span className="text-xs text-surface-400 block font-medium">Today's Revenue</span>
+            <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
+              {formatCurrency(salesAnalytics?.todaySummary.totalRevenue || 0)}
+            </span>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 block">
+              Net Profit: {formatCurrency(salesAnalytics?.todaySummary.netProfit || 0)}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+            <span className="text-xs text-surface-400 block font-medium">This Month's Revenue</span>
+            <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
+              {formatCurrency(salesAnalytics?.currentMonthSummary.totalRevenue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 block">
+              Net Profit: {formatCurrency(salesAnalytics?.currentMonthSummary.netProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+            <span className="text-xs text-surface-400 block font-medium">Current Month Margin</span>
+            <span className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 mt-0.5 block">
+              {salesAnalytics?.currentMonthSummary.profitMargin || 0}%
+            </span>
+            <span className="text-[11px] text-surface-400 mt-1 block">
+              Across {salesAnalytics?.currentMonthSummary.transactionCount || 0} order(s)
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+            <span className="text-xs text-surface-400 block font-medium">Channel Revenue Split</span>
+            <div className="flex items-center gap-2 mt-1.5">
+              {(salesAnalytics?.paymentBreakdown || []).map((p) => (
+                <div key={p.method} className="flex-1 text-center" title={`${p.label}: ${p.percentage}%`}>
+                  <div className="h-1.5 rounded-full bg-purple-500/20 overflow-hidden mb-1">
+                    <div className="h-full bg-purple-600 rounded-full" style={{ width: `${p.percentage}%` }} />
+                  </div>
+                  <span className="text-[10px] font-bold text-surface-500 block truncate">
+                    {p.method.toUpperCase()} {p.percentage}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick stats cards */}
