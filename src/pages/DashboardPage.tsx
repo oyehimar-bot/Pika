@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Receipt,
   BarChart3,
+  Lock,
 } from 'lucide-react'
 import {
   useInventoryValuation,
@@ -19,9 +20,13 @@ import {
   useSalesAnalytics,
 } from '@/hooks/useDatabase'
 import { useAppSettings } from '@/context/AppSettingsContext'
+import { useAuth } from '@/context/AuthContext'
 import { formatCurrency, formatNumber } from '@/utils/currency'
 
 export function DashboardPage() {
+  const { currentStaff, setIsPinModalOpen } = useAuth()
+  const isAdmin = currentStaff?.role === 'admin'
+
   const valuation = useInventoryValuation()
   const todaySales = useTodaySales()
   const products = useProducts()
@@ -116,7 +121,9 @@ export function DashboardPage() {
     {
       label: 'Inventory FIFO Value',
       value: formatCurrency(valuation?.totalCostValue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
-      change: `${formatCurrency(valuation?.potentialProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected profit`,
+      change: isAdmin
+        ? `${formatCurrency(valuation?.potentialProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected profit`
+        : `${valuation?.lowStockCount ?? 0} low stock items`,
       changeType: 'up' as const,
       icon: TrendingUp,
       color: isNoExpiry
@@ -255,11 +262,20 @@ export function DashboardPage() {
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-surface-900 dark:text-white">
-                Sales & Profit Analytics Overview
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-surface-900 dark:text-white">
+                  {isAdmin ? 'Sales & Profit Analytics Overview' : "Today's Sales Performance"}
+                </h2>
+                {!isAdmin && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                    Staff View
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-surface-500 dark:text-surface-400">
-                Live daily checkout velocity and monthly FIFO net profit performance
+                {isAdmin
+                  ? 'Live daily checkout velocity and monthly FIFO net profit performance'
+                  : "Live sales volume and transaction count for today"}
               </p>
             </div>
           </div>
@@ -276,60 +292,119 @@ export function DashboardPage() {
               to="/sales"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-500 transition-all shadow-md shadow-purple-600/20"
             >
-              <span>View Full Analytics</span>
+              <span>{isAdmin ? 'View Full Analytics' : "View Today's Sales"}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
 
         {/* Quick summary comparison grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
-            <span className="text-xs text-surface-400 block font-medium">Today's Revenue</span>
-            <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
-              {formatCurrency(salesAnalytics?.todaySummary.totalRevenue || 0)}
-            </span>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 block">
-              Net Profit: {formatCurrency(salesAnalytics?.todaySummary.netProfit || 0)}
-            </span>
-          </div>
+        {isAdmin ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">Today's Revenue</span>
+              <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
+                {formatCurrency(salesAnalytics?.todaySummary.totalRevenue || 0)}
+              </span>
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 block">
+                Net Profit: {formatCurrency(salesAnalytics?.todaySummary.netProfit || 0)}
+              </span>
+            </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
-            <span className="text-xs text-surface-400 block font-medium">This Month's Revenue</span>
-            <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
-              {formatCurrency(salesAnalytics?.currentMonthSummary.totalRevenue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </span>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 block">
-              Net Profit: {formatCurrency(salesAnalytics?.currentMonthSummary.netProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </span>
-          </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">This Month's Revenue</span>
+              <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
+                {formatCurrency(salesAnalytics?.currentMonthSummary.totalRevenue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1 block">
+                Net Profit: {formatCurrency(salesAnalytics?.currentMonthSummary.netProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
-            <span className="text-xs text-surface-400 block font-medium">Current Month Margin</span>
-            <span className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 mt-0.5 block">
-              {salesAnalytics?.currentMonthSummary.profitMargin || 0}%
-            </span>
-            <span className="text-[11px] text-surface-400 mt-1 block">
-              Across {salesAnalytics?.currentMonthSummary.transactionCount || 0} order(s)
-            </span>
-          </div>
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">Current Month Margin</span>
+              <span className="text-xl font-bold font-mono text-purple-600 dark:text-purple-400 mt-0.5 block">
+                {salesAnalytics?.currentMonthSummary.profitMargin || 0}%
+              </span>
+              <span className="text-[11px] text-surface-400 mt-1 block">
+                Across {salesAnalytics?.currentMonthSummary.transactionCount || 0} order(s)
+              </span>
+            </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
-            <span className="text-xs text-surface-400 block font-medium">Channel Revenue Split</span>
-            <div className="flex items-center gap-2 mt-1.5">
-              {(salesAnalytics?.paymentBreakdown || []).map((p) => (
-                <div key={p.method} className="flex-1 text-center" title={`${p.label}: ${p.percentage}%`}>
-                  <div className="h-1.5 rounded-full bg-purple-500/20 overflow-hidden mb-1">
-                    <div className="h-full bg-purple-600 rounded-full" style={{ width: `${p.percentage}%` }} />
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">Channel Revenue Split</span>
+              <div className="flex items-center gap-2 mt-1.5">
+                {(salesAnalytics?.paymentBreakdown || []).map((p) => (
+                  <div key={p.method} className="flex-1 text-center" title={`${p.label}: ${p.percentage}%`}>
+                    <div className="h-1.5 rounded-full bg-purple-500/20 overflow-hidden mb-1">
+                      <div className="h-full bg-purple-600 rounded-full" style={{ width: `${p.percentage}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-surface-500 block truncate">
+                      {p.method.toUpperCase()} {p.percentage}%
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-surface-500 block truncate">
-                    {p.method.toUpperCase()} {p.percentage}%
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">Today's Revenue</span>
+              <span className="text-xl font-bold font-mono text-surface-900 dark:text-white mt-0.5 block">
+                {formatCurrency(salesAnalytics?.todaySummary.totalRevenue || 0)}
+              </span>
+              <span className="text-[11px] text-surface-500 mt-1 block">
+                {salesAnalytics?.todaySummary.transactionCount || 0} completed orders today
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">Average Order Value</span>
+              <span className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400 mt-0.5 block">
+                {formatCurrency(salesAnalytics?.todaySummary.averageOrderValue || 0)}
+              </span>
+              <span className="text-[11px] text-surface-500 mt-1 block">
+                {salesAnalytics?.todaySummary.itemsSold || 0} items sold today
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white dark:bg-surface-800/60 border border-surface-100 dark:border-surface-700/60">
+              <span className="text-xs text-surface-400 block font-medium">Channel Revenue Split</span>
+              <div className="flex items-center gap-2 mt-1.5">
+                {(salesAnalytics?.paymentBreakdown || []).map((p) => (
+                  <div key={p.method} className="flex-1 text-center" title={`${p.label}: ${p.percentage}%`}>
+                    <div className="h-1.5 rounded-full bg-purple-500/20 overflow-hidden mb-1">
+                      <div className="h-full bg-purple-600 rounded-full" style={{ width: `${p.percentage}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-surface-500 block truncate">
+                      {p.method.toUpperCase()} {p.percentage}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-surface-50/80 dark:bg-surface-800/40 border border-dashed border-surface-200 dark:border-surface-700 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-surface-700 dark:text-surface-200">
+                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Admin Analytics</span>
+                </div>
+                <p className="text-[11px] text-surface-400 mt-1 leading-snug">
+                  Monthly comparison & profit margins restricted to Admin.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPinModalOpen(true)}
+                className="mt-2 text-xs font-bold text-purple-600 hover:text-purple-500 text-left flex items-center gap-1"
+              >
+                <span>Switch to Admin</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick stats cards */}
