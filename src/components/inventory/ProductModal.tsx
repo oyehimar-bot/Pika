@@ -7,6 +7,7 @@ import {
   generateSuggestedSKU,
   generateBarcode,
 } from '@/db'
+import { useAppSettings } from '@/context/AppSettingsContext'
 
 interface ProductModalProps {
   isOpen: boolean
@@ -36,6 +37,9 @@ export function ProductModal({
   productToEdit,
   onSuccess,
 }: ProductModalProps) {
+  const { businessMode } = useAppSettings()
+  const showBarcode = businessMode !== 'no_expiry'
+
   const isEditing = Boolean(productToEdit)
 
   const [name, setName] = useState('')
@@ -122,7 +126,7 @@ export function ProductModal({
           category: finalCategory,
           unit: unit.trim(),
           reorderLevel: reorderVal,
-          barcode: barcode.trim(),
+          barcode: showBarcode ? barcode.trim() : '',
         })
       } else {
         await createProduct({
@@ -131,7 +135,7 @@ export function ProductModal({
           category: finalCategory,
           unit: unit.trim(),
           reorderLevel: reorderVal,
-          barcode: barcode.trim(),
+          barcode: showBarcode ? barcode.trim() : '',
         })
       }
 
@@ -292,29 +296,31 @@ export function ProductModal({
             </div>
           </div>
 
-          {/* Barcode */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-semibold text-surface-700 dark:text-surface-300">
-                Barcode / EAN (Optional)
-              </label>
-              <button
-                type="button"
-                onClick={handleGenerateBarcode}
-                className="flex items-center gap-1 text-[11px] font-semibold text-pika-600 dark:text-pika-400 hover:underline"
-              >
-                <Barcode className="w-3 h-3" />
-                Generate Code
-              </button>
+          {/* Barcode (Conditional on business mode) */}
+          {showBarcode && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-surface-700 dark:text-surface-300">
+                  Barcode / EAN (Optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleGenerateBarcode}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-pika-600 dark:text-pika-400 hover:underline"
+                >
+                  <Barcode className="w-3 h-3" />
+                  Generate Code
+                </button>
+              </div>
+              <input
+                type="text"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                placeholder="e.g. 201948201938 or scan with barcode reader"
+                className="w-full font-mono px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+              />
             </div>
-            <input
-              type="text"
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              placeholder="e.g. 201948201938 or scan with barcode reader"
-              className="w-full font-mono px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
-            />
-          </div>
+          )}
 
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">

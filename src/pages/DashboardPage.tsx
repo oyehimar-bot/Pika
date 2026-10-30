@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   TrendingUp,
@@ -22,7 +23,44 @@ export function DashboardPage() {
   const todaySales = useTodaySales()
   const products = useProducts()
   const expiringBatches = useExpiringBatches(14)
-  const { showExpiry, storeName } = useAppSettings()
+  const { showExpiry, storeName, businessMode, isNoExpiry } = useAppSettings()
+
+  const bannerStyle = useMemo(() => {
+    if (isNoExpiry) {
+      return {
+        bg: 'from-sky-800 via-blue-900 to-slate-950 shadow-sky-950/40 border-sky-500/20',
+        badge: 'Non-Expiry Mode (Durable Goods)',
+        subtitle: 'Real-time stock valuation, durable inventory management, dynamic POS checkout, and zero-data-loss sovereignty.',
+        primaryBtn: 'bg-white text-sky-950 font-bold hover:bg-sky-50',
+        primaryBtnIcon: 'text-sky-700',
+        secondaryBtn: 'bg-sky-600/40 hover:bg-sky-600/60',
+        decor1: 'bg-sky-500/10',
+        decor2: 'bg-blue-500/10',
+      }
+    } else if (businessMode === 'expiry_only') {
+      return {
+        bg: 'from-emerald-800 via-teal-900 to-slate-950 shadow-emerald-950/40 border-emerald-500/20',
+        badge: 'Perishable FIFO Mode (Strict Expiry)',
+        subtitle: 'Real-time stock valuation, strict FIFO costing, automated expiration monitoring, and zero-data-loss sovereignty.',
+        primaryBtn: 'bg-white text-emerald-950 font-bold hover:bg-emerald-50',
+        primaryBtnIcon: 'text-emerald-700',
+        secondaryBtn: 'bg-emerald-600/40 hover:bg-emerald-600/60',
+        decor1: 'bg-emerald-500/10',
+        decor2: 'bg-teal-500/10',
+      }
+    } else {
+      return {
+        bg: 'from-purple-700 via-purple-800 to-slate-900 shadow-purple-950/40 border-purple-500/20',
+        badge: 'Hybrid Store (All Inventory)',
+        subtitle: 'Real-time stock valuation, strict FIFO costing, dynamic POS checkout, and zero-data-loss sovereignty.',
+        primaryBtn: 'bg-white text-purple-900 font-bold hover:bg-purple-50',
+        primaryBtnIcon: 'text-purple-700',
+        secondaryBtn: 'bg-purple-600/40 hover:bg-purple-600/60',
+        decor1: 'bg-purple-500/10',
+        decor2: 'bg-indigo-500/10',
+      }
+    }
+  }, [businessMode, isNoExpiry])
 
   const topProducts = products
     ? [...products].sort((a, b) => b.totalStock - a.totalStock).slice(0, 5)
@@ -50,10 +88,26 @@ export function DashboardPage() {
       change: `${formatNumber(valuation?.totalUnits ?? 0)} total units`,
       changeType: 'neutral' as const,
       icon: Package,
-      color: 'from-purple-500 to-purple-700',
-      bgLight: 'bg-purple-50',
-      bgDark: 'dark:bg-purple-950/30',
-      textColor: 'text-purple-600 dark:text-purple-400',
+      color: isNoExpiry
+        ? 'from-sky-500 to-blue-700'
+        : businessMode === 'expiry_only'
+        ? 'from-emerald-500 to-teal-700'
+        : 'from-purple-500 to-purple-700',
+      bgLight: isNoExpiry
+        ? 'bg-sky-50'
+        : businessMode === 'expiry_only'
+        ? 'bg-emerald-50'
+        : 'bg-purple-50',
+      bgDark: isNoExpiry
+        ? 'dark:bg-sky-950/30'
+        : businessMode === 'expiry_only'
+        ? 'dark:bg-emerald-950/30'
+        : 'dark:bg-purple-950/30',
+      textColor: isNoExpiry
+        ? 'text-sky-600 dark:text-sky-400'
+        : businessMode === 'expiry_only'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : 'text-purple-600 dark:text-purple-400',
     },
     {
       label: 'Inventory FIFO Value',
@@ -61,10 +115,26 @@ export function DashboardPage() {
       change: `${formatCurrency(valuation?.potentialProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected profit`,
       changeType: 'up' as const,
       icon: TrendingUp,
-      color: 'from-purple-600 to-indigo-600',
-      bgLight: 'bg-purple-50',
-      bgDark: 'dark:bg-purple-950/30',
-      textColor: 'text-purple-600 dark:text-purple-400',
+      color: isNoExpiry
+        ? 'from-sky-600 to-blue-800'
+        : businessMode === 'expiry_only'
+        ? 'from-emerald-600 to-teal-800'
+        : 'from-purple-600 to-indigo-600',
+      bgLight: isNoExpiry
+        ? 'bg-sky-50'
+        : businessMode === 'expiry_only'
+        ? 'bg-emerald-50'
+        : 'bg-purple-50',
+      bgDark: isNoExpiry
+        ? 'dark:bg-sky-950/30'
+        : businessMode === 'expiry_only'
+        ? 'dark:bg-emerald-950/30'
+        : 'dark:bg-purple-950/30',
+      textColor: isNoExpiry
+        ? 'text-sky-600 dark:text-sky-400'
+        : businessMode === 'expiry_only'
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : 'text-purple-600 dark:text-purple-400',
     },
     {
       label: 'Low Stock Alerts',
@@ -82,28 +152,30 @@ export function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-700 via-purple-800 to-slate-900 p-6 md:p-8 text-white shadow-2xl shadow-purple-950/40 border border-purple-500/20">
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${bannerStyle.bg} p-6 md:p-8 text-white shadow-2xl border`}>
         <div className="relative z-10 max-w-xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold mb-3">
             <span>🐹 {storeName || 'Pika SME Enterprise'}</span>
+            <span className="opacity-40">•</span>
+            <span>{bannerStyle.badge}</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
             Live Business Intelligence
           </h1>
-          <p className="mt-2 text-purple-200 text-sm leading-relaxed">
-            Real-time stock valuation, strict FIFO costing, dynamic POS checkout, and zero-data-loss sovereignty.
+          <p className="mt-2 text-surface-200 text-sm leading-relaxed">
+            {bannerStyle.subtitle}
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               to="/inventory"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-purple-900 font-bold text-sm hover:bg-purple-50 transition-colors shadow-lg shadow-black/20"
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${bannerStyle.primaryBtn} text-sm transition-colors shadow-lg shadow-black/20`}
             >
-              <Package className="w-4 h-4 text-purple-700" />
+              <Package className={`w-4 h-4 ${bannerStyle.primaryBtnIcon}`} />
               Manage Inventory
             </Link>
             <Link
               to="/pos"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600/40 text-white font-semibold text-sm hover:bg-purple-600/60 transition-colors backdrop-blur-sm border border-white/20"
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${bannerStyle.secondaryBtn} text-white font-semibold text-sm transition-colors backdrop-blur-sm border border-white/20`}
             >
               <ShoppingCart className="w-4 h-4" />
               Launch POS Checkout
@@ -111,9 +183,9 @@ export function DashboardPage() {
           </div>
         </div>
         {/* Decorative elements */}
-        <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-purple-500/10 pointer-events-none blur-xl" />
-        <div className="absolute -right-4 top-12 w-28 h-28 rounded-full bg-indigo-500/10 pointer-events-none" />
-        <div className="absolute right-24 -bottom-6 w-36 h-36 rounded-full bg-purple-500/10 pointer-events-none" />
+        <div className={`absolute -right-8 -top-8 w-48 h-48 rounded-full ${bannerStyle.decor1} pointer-events-none blur-xl`} />
+        <div className={`absolute -right-4 top-12 w-28 h-28 rounded-full ${bannerStyle.decor2} pointer-events-none`} />
+        <div className={`absolute right-24 -bottom-6 w-36 h-36 rounded-full ${bannerStyle.decor1} pointer-events-none`} />
       </div>
 
       {/* Metrics grid */}
