@@ -41,7 +41,7 @@ export interface Batch {
 
 // ─── Sale (Transaction Header) ──────────────────────────────────────────────
 
-export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'mobile' | 'split'
+export type PaymentMethod = 'cash' | 'transfer' | 'card'
 
 export interface Sale {
   id?: number
@@ -207,5 +207,41 @@ export interface ExpiryWarning {
   expiryDate: Date
   remainingQty: number
   daysUntilExpiry: number
+}
+
+// ─── Receipt Snapshot (Immutable Thermal Historical Record) ────────────────
+
+export interface ReceiptItemSnapshot {
+  productId: number
+  productName: string
+  sku: string
+  quantity: number
+  unitPrice: number
+  lineTotal: number
+  listedPrice?: number
+  priceVariance?: number
+  varianceNote?: string
+}
+
+export interface ReceiptSnapshot {
+  id?: number
+  receiptNumber: string
+  saleId: number
+  transactionId: string
+  timestamp: Date
+  staffId: string
+  staffName: string
+  customerName?: string
+  paymentMethod: PaymentMethod
+  subtotal: number
+  discount: number
+  tax: number
+  totalAmount: number
+  cashTendered?: number
+  cashChange?: number
+  itemCount: number
+  items: ReceiptItemSnapshot[]
+  notes?: string
+  storeName?: string
 }
 
