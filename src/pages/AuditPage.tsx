@@ -109,6 +109,12 @@ export function AuditPage() {
           color: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300',
           icon: RotateCcw,
         }
+      case 'discount_applied':
+        return {
+          label: 'Price Override / Discount',
+          color: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300',
+          icon: SlidersHorizontal,
+        }
       case 'batch_received':
         return {
           label: 'Batch Received',

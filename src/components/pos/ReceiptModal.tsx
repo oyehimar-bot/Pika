@@ -1,6 +1,8 @@
 import { useRef } from 'react'
-import { Printer, X, ShoppingBag } from 'lucide-react'
+import { Printer, X, ShoppingBag, Tag } from 'lucide-react'
 import type { SaleWithItems } from '@/db'
+import { formatCurrency } from '@/utils/currency'
+import { useAppSettings } from '@/context/AppSettingsContext'
 
 interface ReceiptModalProps {
   isOpen: boolean
@@ -18,6 +20,7 @@ export function ReceiptModal({
   cashChange,
 }: ReceiptModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null)
+  const { storeName } = useAppSettings()
 
   if (!isOpen || !sale) return null
 
@@ -32,6 +35,11 @@ export function ReceiptModal({
     mobile: 'MOBILE MONEY',
     split: 'SPLIT PAYMENT',
   }
+
+  const dateFormatted = new Date(sale.timestamp).toLocaleString('en-NG', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static">
@@ -53,166 +61,172 @@ export function ReceiptModal({
           </button>
         </div>
 
-        {/* Thermal Receipt Paper Container */}
-        <div className="overflow-y-auto p-6 text-surface-900 dark:text-surface-100 font-mono text-xs print:p-0 print:overflow-visible">
-          <div
-            ref={receiptRef}
-            className="mx-auto w-full max-w-[320px] bg-white text-black p-4 rounded-xl border border-dashed border-surface-300 shadow-inner print:border-none print:shadow-none print:p-0 print:max-w-[80mm]"
-          >
-            {/* Store Header */}
-            <div className="text-center pb-3 border-b border-dashed border-gray-300">
-              <div className="flex items-center justify-center gap-1.5 font-sans font-black text-base text-gray-900 mb-0.5">
-                <ShoppingBag className="w-4 h-4" />
-                PIKA RETAIL STORE
-              </div>
-              <p className="text-[10px] text-gray-600">
-                12 Market Road, Central Commercial District
-              </p>
-              <p className="text-[10px] text-gray-600">Tel: +234 (0) 800-PIKA-POS</p>
-              <div className="mt-2 text-[10px] text-gray-500 font-sans uppercase">
-                *** OFFICIAL RECEIPT ***
-              </div>
+        {/* Receipt Container — formatted strictly for 80mm / 58mm POS thermal printers */}
+        <div
+          ref={receiptRef}
+          className="flex-1 overflow-y-auto p-6 bg-white text-gray-900 font-mono text-xs select-none print:p-2 print:overflow-visible"
+        >
+          {/* Receipt Header */}
+          <div className="text-center pb-3 border-b border-dashed border-gray-300">
+            <div className="inline-flex items-center justify-center p-2 rounded-full bg-purple-100 text-purple-700 mb-1.5 print:hidden">
+              <ShoppingBag className="w-5 h-5" />
             </div>
+            <h1 className="text-base font-extrabold tracking-tight uppercase text-gray-900">
+              {storeName || 'Pika SME Enterprise'}
+            </h1>
+            <p className="text-[10px] text-gray-500 mt-0.5">
+              Retail & Inventory Stock Management
+            </p>
+            <p className="text-[10px] text-gray-400 font-sans mt-0.5">
+              Official Purchase Customer Receipt
+            </p>
+          </div>
 
-            {/* Transaction Metadata */}
-            <div className="py-2.5 border-b border-dashed border-gray-300 text-[11px] space-y-1">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Receipt No:</span>
-                <span className="font-bold">{sale.transactionId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Date/Time:</span>
-                <span>{new Date(sale.timestamp).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Cashier:</span>
-                <span>{sale.staffName} (ID: {sale.staffId})</span>
-              </div>
-              {sale.customerName && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Customer:</span>
-                  <span>{sale.customerName}</span>
-                </div>
-              )}
+          {/* Receipt Metadata */}
+          <div className="py-2.5 border-b border-dashed border-gray-300 text-[10px] text-gray-600 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Receipt Ref:</span>
+              <span className="font-bold text-gray-900">{sale.transactionId}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Date & Time:</span>
+              <span>{dateFormatted}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Cashier / Staff:</span>
+              <span>{sale.staffName} (ID: {sale.staffId})</span>
+            </div>
+            {sale.customerName && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Customer:</span>
+                <span>{sale.customerName}</span>
+              </div>
+            )}
+          </div>
 
-            {/* Line Items Table */}
-            <div className="py-3 border-b border-dashed border-gray-300">
-              <table className="w-full text-left text-[11px]">
-                <thead>
-                  <tr className="border-b border-gray-200 text-gray-500 text-[10px]">
-                    <th className="pb-1">Item</th>
-                    <th className="pb-1 text-center">Qty</th>
-                    <th className="pb-1 text-right">Price</th>
-                    <th className="pb-1 text-right">Total</th>
+          {/* Line Items Table */}
+          <div className="py-3 border-b border-dashed border-gray-300">
+            <table className="w-full text-left text-[11px]">
+              <thead>
+                <tr className="border-b border-gray-200 text-gray-500 text-[10px]">
+                  <th className="pb-1">Item</th>
+                  <th className="pb-1 text-center">Qty</th>
+                  <th className="pb-1 text-right">Price</th>
+                  <th className="pb-1 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {sale.items.map((item, idx) => (
+                  <tr key={idx} className="align-top">
+                    <td className="py-1.5 pr-1">
+                      <div className="font-semibold text-gray-900 line-clamp-1">
+                        {item.productName}
+                      </div>
+                      <div className="text-[9px] text-gray-500 font-mono flex items-center gap-1">
+                        <span>Lot: {item.batchNumber}</span>
+                        {item.priceVariance && item.priceVariance !== 0 ? (
+                          <span className="inline-flex items-center gap-0.5 text-purple-700 font-medium">
+                            <Tag className="w-2.5 h-2.5" />
+                            <span>Override</span>
+                          </span>
+                        ) : null}
+                      </div>
+                      {item.varianceNote && (
+                        <div className="text-[8px] text-purple-600 italic">
+                          Note: {item.varianceNote}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-1.5 text-center text-gray-800">
+                      {item.quantity}
+                    </td>
+                    <td className="py-1.5 text-right text-gray-700">
+                      {formatCurrency(item.unitSellingPrice)}
+                    </td>
+                    <td className="py-1.5 text-right font-semibold text-gray-900">
+                      {formatCurrency(item.lineTotal)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {sale.items.map((item, idx) => (
-                    <tr key={idx} className="align-top">
-                      <td className="py-1.5 pr-1">
-                        <div className="font-semibold text-gray-900 line-clamp-1">
-                          {item.productName}
-                        </div>
-                        <div className="text-[9px] text-gray-500 font-mono">
-                          Lot: {item.batchNumber}
-                        </div>
-                      </td>
-                      <td className="py-1.5 text-center text-gray-800">
-                        {item.quantity}
-                      </td>
-                      <td className="py-1.5 text-right text-gray-700">
-                        {item.unitSellingPrice.toFixed(2)}
-                      </td>
-                      <td className="py-1.5 text-right font-semibold text-gray-900">
-                        ₦{item.lineTotal.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-            {/* Financial Summary */}
-            <div className="py-2.5 border-b border-dashed border-gray-300 text-[11px] space-y-1">
+          {/* Financial Summary */}
+          <div className="py-2.5 border-b border-dashed border-gray-300 text-[11px] space-y-1">
+            <div className="flex justify-between text-gray-600">
+              <span>Subtotal:</span>
+              <span>{formatCurrency(sale.subtotal)}</span>
+            </div>
+            {sale.discount > 0 && (
+              <div className="flex justify-between text-purple-700 font-medium">
+                <span>Discount:</span>
+                <span>-{formatCurrency(sale.discount)}</span>
+              </div>
+            )}
+            {sale.tax > 0 && (
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal:</span>
-                <span>₦{sale.subtotal.toFixed(2)}</span>
+                <span>Tax / VAT:</span>
+                <span>{formatCurrency(sale.tax)}</span>
               </div>
-              {sale.discount > 0 && (
+            )}
+            <div className="flex justify-between text-base font-black text-gray-900 pt-1.5 border-t border-gray-300">
+              <span>TOTAL:</span>
+              <span>{formatCurrency(sale.totalAmount)}</span>
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div className="py-2.5 border-b border-dashed border-gray-300 text-[11px] space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Payment Method:</span>
+              <span className="font-bold">
+                {paymentLabels[sale.paymentMethod] || sale.paymentMethod.toUpperCase()}
+              </span>
+            </div>
+            {sale.paymentMethod === 'cash' && cashTendered !== undefined && (
+              <>
                 <div className="flex justify-between text-gray-600">
-                  <span>Discount:</span>
-                  <span>-₦{sale.discount.toFixed(2)}</span>
+                  <span>Cash Tendered:</span>
+                  <span>{formatCurrency(cashTendered)}</span>
                 </div>
-              )}
-              {sale.tax > 0 && (
-                <div className="flex justify-between text-gray-600">
-                  <span>Tax / VAT:</span>
-                  <span>₦{sale.tax.toFixed(2)}</span>
+                <div className="flex justify-between font-bold text-gray-900">
+                  <span>Change Given:</span>
+                  <span>{formatCurrency(cashChange ?? 0)}</span>
                 </div>
-              )}
-              <div className="flex justify-between text-base font-black text-gray-900 pt-1.5 border-t border-gray-300">
-                <span>TOTAL:</span>
-                <span>₦{sale.totalAmount.toFixed(2)}</span>
+              </>
+            )}
+            {sale.notes && (
+              <div className="pt-1 text-[10px] text-gray-500 italic">
+                Note: {sale.notes}
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Payment Details */}
-            <div className="py-2.5 border-b border-dashed border-gray-300 text-[11px] space-y-1">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Payment Method:</span>
-                <span className="font-bold">
-                  {paymentLabels[sale.paymentMethod] || sale.paymentMethod.toUpperCase()}
-                </span>
-              </div>
-              {sale.paymentMethod === 'cash' && cashTendered !== undefined && (
-                <>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Cash Tendered:</span>
-                    <span>₦{cashTendered.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-gray-900">
-                    <span>Change Given:</span>
-                    <span>₦{(cashChange ?? 0).toFixed(2)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Barcode & Footer */}
-            <div className="pt-4 text-center space-y-2">
-              {/* Pseudo Barcode */}
-              <div className="font-mono text-xs tracking-[0.3em] font-black text-gray-800 select-all">
-                ||| | |||| | ||| |||| | ||
-              </div>
-              <div className="text-[10px] font-mono text-gray-500">
-                {sale.transactionId}
-              </div>
-
-              <div className="text-[10px] text-gray-600 pt-2 font-sans">
-                Thank you for your business! Please keep this receipt for returns within 7 days.
-              </div>
-              <div className="text-[9px] text-gray-400 font-sans">
-                Local-First Inventory • Powered by Pika
-              </div>
-            </div>
+          {/* Receipt Footer */}
+          <div className="text-center pt-3 text-[10px] text-gray-500 space-y-0.5">
+            <p className="font-semibold text-gray-700">Thank you for your patronage!</p>
+            <p>Goods sold in good condition are not returnable.</p>
+            <p className="text-[9px] text-gray-400 font-sans pt-1">
+              Powered by Pika • Local-First Inventory & POS
+            </p>
           </div>
         </div>
 
-        {/* Footer Actions (hidden during printing) */}
-        <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50/80 dark:bg-surface-800/50 flex items-center justify-between gap-3 print:hidden">
+        {/* Modal Controls (hidden during thermal printing) */}
+        <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex gap-2.5 print:hidden">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-200 text-xs font-semibold hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+            className="flex-1 py-2.5 px-4 rounded-xl border border-surface-300 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-700 text-xs font-semibold transition-colors"
           >
-            New Sale (Esc)
+            Close / New Sale
           </button>
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-pika-600 hover:bg-pika-700 text-white text-xs font-bold shadow-md shadow-pika-600/25 transition-all"
+            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 transition-all"
           >
             <Printer className="w-4 h-4" />
-            Print Receipt
+            <span>Print Receipt</span>
           </button>
         </div>
       </div>

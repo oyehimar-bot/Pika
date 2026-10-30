@@ -57,14 +57,28 @@ export async function processSale(
 
   // Step 1: Calculate FIFO allocations for all cart items
   const allocationResults = await Promise.all(
-    cartItems.map(async (item) => ({
-      productId: item.productId,
-      productName: item.productName,
-      sku: item.sku,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      result: await calculateFIFOAllocation(item.productId, item.quantity),
-    }))
+    cartItems.map(async (item) => {
+      const listedPrice = item.unitPrice
+      const actualSoldPrice =
+        item.customPrice !== undefined && !isNaN(item.customPrice)
+          ? item.customPrice
+          : item.unitPrice
+      const priceVariance = Math.round((actualSoldPrice - listedPrice) * 100) / 100
+
+      const result = await calculateFIFOAllocation(item.productId, item.quantity)
+
+      return {
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku,
+        quantity: item.quantity,
+        listedPrice,
+        actualSoldPrice,
+        priceVariance,
+        varianceNote: item.varianceNote,
+        result,
+      }
+    })
   )
 
   // Check for any allocation failures
@@ -76,12 +90,12 @@ export async function processSale(
     return { success: false, error: errorMessages }
   }
 
-  // Step 2: Calculate totals
+  // Step 2: Calculate totals using actual sold prices
   const subtotal = allocationResults.reduce(
-    (sum, r) => sum + r.result.totalRevenue,
+    (sum, r) => sum + r.actualSoldPrice * r.quantity,
     0
   )
-  const totalAmount = Math.round((subtotal - discount + tax) * 100) / 100
+  const totalAmount = Math.max(0, Math.round((subtotal - discount + tax) * 100) / 100)
   const totalCost = allocationResults.reduce(
     (sum, r) => sum + r.result.totalCost,
     0
@@ -89,6 +103,9 @@ export async function processSale(
   const totalProfit = Math.round((totalAmount - totalCost) * 100) / 100
 
   const transactionId = generateTransactionId()
+
+  // Track if any negotiated price override happened
+  const overriddenItems = allocationResults.filter((r) => r.priceVariance !== 0)
 
   // Step 3: Commit everything in a single transaction
   let saleId: number | undefined
@@ -102,7 +119,7 @@ export async function processSale(
         saleId = await db.sales.add({
           transactionId,
           totalAmount,
-          subtotal,
+          subtotal: Math.round(subtotal * 100) / 100,
           discount,
           tax,
           paymentMethod,
@@ -115,15 +132,16 @@ export async function processSale(
 
         // Create sale items and deduct stock for each cart item
         for (const allocResult of allocationResults) {
-          const { result } = allocResult
+          const { result, listedPrice, actualSoldPrice, priceVariance, varianceNote } = allocResult
 
           // Commit batch deductions
           await commitFIFODeduction(result.allocations)
 
           // Create sale item records (one per batch allocation)
           for (const alloc of result.allocations) {
-            const lineTotal = Math.round(alloc.quantity * alloc.sellingPrice * 100) / 100
+            const lineTotal = Math.round(alloc.quantity * actualSoldPrice * 100) / 100
             const lineCost = Math.round(alloc.quantity * alloc.costPrice * 100) / 100
+            const lineProfit = Math.round((lineTotal - lineCost) * 100) / 100
 
             await db.saleItems.add({
               saleId: saleId!,
@@ -133,22 +151,27 @@ export async function processSale(
               batchNumber: alloc.batchNumber,
               quantity: alloc.quantity,
               unitCostPrice: alloc.costPrice,
-              unitSellingPrice: alloc.sellingPrice,
+              unitSellingPrice: actualSoldPrice,
+              listedPrice,
+              actualSoldPrice,
+              priceVariance,
+              varianceNote,
               lineTotal,
-              lineProfit: Math.round((lineTotal - lineCost) * 100) / 100,
+              lineProfit,
             })
           }
         }
 
-        // Audit log
+        // Audit log for sale completion
         await db.auditLogs.add({
           staffId,
           staffName,
           action: 'sale_completed',
           entity: 'sale',
           entityId: saleId,
-          details: `Sale ${transactionId}: ₦${totalAmount.toFixed(2)} ` +
-            `(${cartItems.length} product(s), ${paymentMethod})`,
+          details: `Sale ${transactionId}: ₦${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${cartItems.length} item(s), ${paymentMethod})${
+            overriddenItems.length > 0 ? ` • ${overriddenItems.length} price override(s)` : ''
+          }`,
           metadata: {
             transactionId,
             totalAmount,
@@ -157,9 +180,40 @@ export async function processSale(
             itemCount: cartItems.length,
             paymentMethod,
             discount,
+            priceOverrides: overriddenItems.map((o) => ({
+              product: o.productName,
+              listed: o.listedPrice,
+              actual: o.actualSoldPrice,
+              variance: o.priceVariance,
+              note: o.varianceNote,
+            })),
           },
           timestamp: new Date(),
         })
+
+        // If price variances occurred, log explicit discount_applied audit event
+        for (const item of overriddenItems) {
+          await db.auditLogs.add({
+            staffId,
+            staffName,
+            action: 'discount_applied',
+            entity: 'sale',
+            entityId: saleId,
+            details: `Price Override on "${item.productName}": ₦${item.listedPrice.toFixed(2)} → ₦${item.actualSoldPrice.toFixed(2)} (${item.priceVariance > 0 ? '+' : ''}₦${item.priceVariance.toFixed(2)})${
+              item.varianceNote ? ` [Reason: ${item.varianceNote}]` : ''
+            }`,
+            metadata: {
+              transactionId,
+              productId: item.productId,
+              productName: item.productName,
+              listedPrice: item.listedPrice,
+              actualSoldPrice: item.actualSoldPrice,
+              priceVariance: item.priceVariance,
+              varianceNote: item.varianceNote,
+            },
+            timestamp: new Date(),
+          })
+        }
       }
     )
   } catch (err) {
