@@ -29,6 +29,8 @@ export type {
   ExpiryWarning,
   BusinessMode,
   AppSetting,
+  ReceiptSnapshot,
+  ReceiptItemSnapshot,
 } from './models'
 
 // FIFO inventory engine
@@ -67,5 +69,31 @@ export {
   seedSampleInventory,
 } from './productService'
 export type { CreateProductInput, UpdateProductInput } from './productService'
+
+// Receipt service
+export {
+  getAllReceipts,
+  getReceiptById,
+  searchReceipts,
+  convertReceiptToSaleWithItems,
+  exportReceiptsToCSV,
+  syncHistoricalReceipts,
+} from './receiptService'
+export type { ReceiptFilterOptions } from './receiptService'
+
+// Sales Analytics service
+export {
+  getComprehensiveSalesAnalytics,
+  getDateRangeForPreset,
+} from './salesAnalyticsService'
+export type {
+  SalesTimeframePreset,
+  SalesKPIs,
+  DailyBreakdownItem,
+  MonthlyBreakdownItem,
+  PaymentMethodShare,
+  SalesAnalyticsResult,
+} from './salesAnalyticsService'
+
 
 

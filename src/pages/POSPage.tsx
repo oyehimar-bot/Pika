@@ -8,7 +8,6 @@ import {
   DollarSign,
   CreditCard,
   Building,
-  Smartphone,
   CheckCircle,
   AlertCircle,
   Wifi,
@@ -338,6 +337,8 @@ export function POSPage() {
         staffName: currentStaff ? currentStaff.name : 'Cashier',
         customerName: customerName.trim() || undefined,
         notes: notes.trim() || undefined,
+        cashTendered: paymentMethod === 'cash' && tenderedNum > 0 ? tenderedNum : undefined,
+        cashChange: paymentMethod === 'cash' ? cashChange : undefined,
       })
 
       if (!result.success || !result.saleId) {
@@ -797,16 +798,16 @@ export function POSPage() {
             </div>
 
             {/* Payment Method Selector */}
+            {/* Payment Method Selector */}
             <div className="px-5 py-3 border-t border-surface-200 dark:border-surface-800 space-y-2">
               <span className="text-[11px] font-semibold text-surface-500 dark:text-surface-400 block">
                 Select Payment Method
               </span>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'cash', label: 'Cash', icon: DollarSign },
-                  { id: 'card', label: 'Card/POS', icon: CreditCard },
-                  { id: 'transfer', label: 'Transfer', icon: Building },
-                  { id: 'mobile', label: 'Mobile', icon: Smartphone },
+                  { id: 'transfer', label: 'Bank Transfer', icon: Building },
+                  { id: 'card', label: 'POS / Card', icon: CreditCard },
                 ].map((m) => {
                   const Icon = m.icon
                   const isSelected = paymentMethod === m.id

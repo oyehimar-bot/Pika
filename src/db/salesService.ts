@@ -31,12 +31,16 @@ export interface ProcessSaleInput {
   staffName: string
   customerName?: string
   notes?: string
+  cashTendered?: number
+  cashChange?: number
+  storeName?: string
 }
 
 export interface ProcessSaleResult {
   success: boolean
   saleId?: number
   transactionId?: string
+  receiptId?: number
   totalAmount?: number
   totalProfit?: number
   error?: string
@@ -49,7 +53,19 @@ export interface ProcessSaleResult {
 export async function processSale(
   input: ProcessSaleInput
 ): Promise<ProcessSaleResult> {
-  const { cartItems, paymentMethod, discount, tax, staffId, staffName, customerName, notes } = input
+  const {
+    cartItems,
+    paymentMethod,
+    discount,
+    tax,
+    staffId,
+    staffName,
+    customerName,
+    notes,
+    cashTendered,
+    cashChange,
+    storeName,
+  } = input
 
   if (cartItems.length === 0) {
     return { success: false, error: 'Cart is empty' }
@@ -109,12 +125,15 @@ export async function processSale(
 
   // Step 3: Commit everything in a single transaction
   let saleId: number | undefined
+  let receiptId: number | undefined
 
   try {
     await db.transaction(
       'rw',
-      [db.sales, db.saleItems, db.batches, db.auditLogs],
+      [db.sales, db.saleItems, db.batches, db.auditLogs, db.receipts],
       async () => {
+        const saleTimestamp = new Date()
+
         // Create sale header
         saleId = await db.sales.add({
           transactionId,
@@ -127,7 +146,7 @@ export async function processSale(
           staffName,
           customerName,
           notes,
-          timestamp: new Date(),
+          timestamp: saleTimestamp,
         })
 
         // Create sale items and deduct stock for each cart item
@@ -161,6 +180,41 @@ export async function processSale(
             })
           }
         }
+
+        // Create snapshot items for receipt history
+        const receiptItems = allocationResults.map((r) => ({
+          productId: r.productId,
+          productName: r.productName,
+          sku: r.sku,
+          quantity: r.quantity,
+          unitPrice: r.actualSoldPrice,
+          lineTotal: Math.round(r.actualSoldPrice * r.quantity * 100) / 100,
+          listedPrice: r.listedPrice,
+          priceVariance: r.priceVariance,
+          varianceNote: r.varianceNote,
+        }))
+
+        // Automatically store permanent receipt snapshot
+        receiptId = await db.receipts.add({
+          receiptNumber: transactionId,
+          saleId: saleId!,
+          transactionId,
+          timestamp: saleTimestamp,
+          staffId,
+          staffName,
+          customerName,
+          paymentMethod,
+          subtotal: Math.round(subtotal * 100) / 100,
+          discount,
+          tax,
+          totalAmount,
+          cashTendered,
+          cashChange,
+          itemCount: cartItems.length,
+          items: receiptItems,
+          notes,
+          storeName,
+        })
 
         // Audit log for sale completion
         await db.auditLogs.add({
@@ -227,6 +281,7 @@ export async function processSale(
     success: true,
     saleId,
     transactionId,
+    receiptId,
     totalAmount,
     totalProfit,
   }

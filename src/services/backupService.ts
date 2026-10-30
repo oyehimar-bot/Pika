@@ -11,6 +11,7 @@ export interface BackupPayload {
     auditLogs: unknown[]
     staff: unknown[]
     appSettings?: unknown[]
+    receipts?: unknown[]
   }
 }
 
@@ -18,7 +19,7 @@ export interface BackupPayload {
  * Dump complete local IndexedDB database into a downloadable JSON file.
  */
 export async function exportDatabaseToJSON(): Promise<void> {
-  const [products, batches, sales, saleItems, auditLogs, staff, appSettings] =
+  const [products, batches, sales, saleItems, auditLogs, staff, appSettings, receipts] =
     await Promise.all([
       db.products.toArray(),
       db.batches.toArray(),
@@ -27,6 +28,7 @@ export async function exportDatabaseToJSON(): Promise<void> {
       db.auditLogs.toArray(),
       db.staff.toArray(),
       db.appSettings.toArray(),
+      db.receipts.toArray(),
     ])
 
   const payload: BackupPayload = {
@@ -40,6 +42,7 @@ export async function exportDatabaseToJSON(): Promise<void> {
       auditLogs,
       staff,
       appSettings,
+      receipts,
     },
   }
 
@@ -204,7 +207,7 @@ export async function importDatabaseFromJSON(fileOrJson: File | string): Promise
 
   await db.transaction(
     'rw',
-    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff, db.appSettings],
+    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff, db.appSettings, db.receipts],
     async () => {
       // Clear current data
       await Promise.all([
@@ -215,6 +218,7 @@ export async function importDatabaseFromJSON(fileOrJson: File | string): Promise
         db.auditLogs.clear(),
         db.staff.clear(),
         db.appSettings.clear(),
+        db.receipts.clear(),
       ])
 
       // Restore tables
@@ -245,6 +249,10 @@ export async function importDatabaseFromJSON(fileOrJson: File | string): Promise
       if (Array.isArray(data.tables.appSettings) && data.tables.appSettings.length > 0) {
         await db.appSettings.bulkAdd(data.tables.appSettings as any)
         totalRestored += data.tables.appSettings.length
+      }
+      if (Array.isArray(data.tables.receipts) && data.tables.receipts.length > 0) {
+        await db.receipts.bulkAdd(data.tables.receipts as any)
+        totalRestored += data.tables.receipts.length
       }
 
       await db.auditLogs.add({

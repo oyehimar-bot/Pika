@@ -14,6 +14,8 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Overview of your business metrics' },
   '/inventory': { title: 'Inventory', subtitle: 'Manage products, batches & stock levels' },
   '/pos': { title: 'Point of Sale', subtitle: 'Fast checkout & receipt generation' },
+  '/receipts': { title: 'Receipt History', subtitle: 'Search, review and reprint thermal receipts' },
+  '/sales': { title: 'Sales Analytics', subtitle: 'Daily & monthly revenue and profit performance' },
   '/audit': { title: 'Audit Trail', subtitle: 'Activity logs & security events' },
   '/settings': { title: 'Settings', subtitle: 'App preferences & data management' },
 }

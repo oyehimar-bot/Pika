@@ -10,6 +10,7 @@ interface ReceiptModalProps {
   sale: SaleWithItems | null
   cashTendered?: number
   cashChange?: number
+  isReprint?: boolean
 }
 
 export function ReceiptModal({
@@ -18,6 +19,7 @@ export function ReceiptModal({
   sale,
   cashTendered,
   cashChange,
+  isReprint = false,
 }: ReceiptModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null)
   const { storeName } = useAppSettings()
@@ -30,10 +32,8 @@ export function ReceiptModal({
 
   const paymentLabels: Record<string, string> = {
     cash: 'CASH',
-    card: 'CARD / POS TERMINAL',
     transfer: 'BANK TRANSFER',
-    mobile: 'MOBILE MONEY',
-    split: 'SPLIT PAYMENT',
+    card: 'POS / CARD',
   }
 
   const dateFormatted = new Date(sale.timestamp).toLocaleString('en-NG', {
@@ -51,7 +51,7 @@ export function ReceiptModal({
         <div className="flex items-center justify-between px-5 py-3 border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 print:hidden">
           <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Sale Completed Successfully
+            {isReprint ? 'Receipt Viewer (Thermal Reprint)' : 'Sale Completed Successfully'}
           </div>
           <button
             onClick={onClose}
@@ -81,9 +81,15 @@ export function ReceiptModal({
             <p className="text-[10px] text-gray-500 mt-0.5">
               Retail & Inventory Stock Management
             </p>
-            <p className="text-[10px] text-gray-400 font-sans mt-0.5">
-              Official Purchase Customer Receipt
-            </p>
+            {isReprint ? (
+              <p className="text-[10px] font-bold text-gray-700 font-sans mt-0.5 bg-gray-100 py-0.5 rounded">
+                *** REPRINT / DUPLICATE RECEIPT ***
+              </p>
+            ) : (
+              <p className="text-[10px] text-gray-400 font-sans mt-0.5">
+                Official Purchase Customer Receipt
+              </p>
+            )}
           </div>
 
           {/* Receipt Metadata */}

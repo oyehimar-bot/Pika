@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Product, Batch, Sale, SaleItem, AuditLog, Staff, AppSetting } from './models'
+import type { Product, Batch, Sale, SaleItem, AuditLog, Staff, AppSetting, ReceiptSnapshot } from './models'
 
 /**
  * PikaDatabase — Local-first IndexedDB schema via Dexie.js
@@ -17,6 +17,7 @@ export class PikaDatabase extends Dexie {
   auditLogs!: EntityTable<AuditLog, 'id'>
   staff!: EntityTable<Staff, 'id'>
   appSettings!: EntityTable<AppSetting, 'key'>
+  receipts!: EntityTable<ReceiptSnapshot, 'id'>
 
   constructor() {
     super('PikaDB')
@@ -42,6 +43,11 @@ export class PikaDatabase extends Dexie {
 
       // App Settings — key/value store for business mode, store preferences
       appSettings: 'key',
+    })
+
+    this.version(2).stores({
+      // Receipts — indexed for receipt history search, date filtering, and thermal reprinting
+      receipts: '++id, receiptNumber, saleId, transactionId, staffId, paymentMethod, timestamp',
     })
   }
 }
@@ -99,7 +105,7 @@ export async function initializeDatabase(): Promise<void> {
 export async function clearDatabase(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff, db.appSettings],
+    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff, db.appSettings, db.receipts],
     async () => {
       await db.products.clear()
       await db.batches.clear()
@@ -108,6 +114,7 @@ export async function clearDatabase(): Promise<void> {
       await db.auditLogs.clear()
       await db.staff.clear()
       await db.appSettings.clear()
+      await db.receipts.clear()
     }
   )
 }
