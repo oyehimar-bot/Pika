@@ -52,21 +52,37 @@ export const db = new PikaDatabase()
 export async function initializeDatabase(): Promise<void> {
   const staffCount = await db.staff.count()
   if (staffCount === 0) {
-    // Seed a default admin user
-    await db.staff.add({
-      name: 'Admin',
-      pin: '0000',
-      role: 'admin',
-      isActive: true,
-      createdAt: new Date(),
-    })
+    // Seed default staff roles for fast PIN switching
+    await db.staff.bulkAdd([
+      {
+        name: 'Admin',
+        pin: '0000',
+        role: 'admin',
+        isActive: true,
+        createdAt: new Date(),
+      },
+      {
+        name: 'Store Manager',
+        pin: '5678',
+        role: 'manager',
+        isActive: true,
+        createdAt: new Date(),
+      },
+      {
+        name: 'Cashier 1',
+        pin: '1234',
+        role: 'cashier',
+        isActive: true,
+        createdAt: new Date(),
+      },
+    ])
 
     await db.auditLogs.add({
       staffId: 'system',
       staffName: 'System',
       action: 'settings_changed',
       entity: 'system',
-      details: 'Database initialized with default admin staff',
+      details: 'Database initialized with Admin, Manager, and Cashier profiles',
       timestamp: new Date(),
     })
   }
