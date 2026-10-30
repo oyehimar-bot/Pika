@@ -15,12 +15,16 @@ import {
   WifiOff,
   Percent,
   RotateCcw,
+  Tag,
+  Edit2,
+  Check,
 } from 'lucide-react'
 import type { ProductWithStock, CartItem, PaymentMethod, SaleWithItems } from '@/db'
 import { useProducts } from '@/hooks/useDatabase'
 import { processSale, getSaleWithItems } from '@/db'
 import { useAuth } from '@/context/AuthContext'
 import { ReceiptModal } from '@/components/pos/ReceiptModal'
+import { formatCurrency } from '@/utils/currency'
 
 export function POSPage() {
   const products = useProducts()
@@ -31,6 +35,11 @@ export function POSPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [cart, setCart] = useState<CartItem[]>([])
+
+  // Dynamic pricing state: track which item is currently being edited
+  const [editingPriceProductId, setEditingPriceProductId] = useState<number | null>(null)
+  const [tempCustomPrice, setTempCustomPrice] = useState<string>('')
+  const [tempVarianceNote, setTempVarianceNote] = useState<string>('')
 
   // Financial adjustments
   const [discountType, setDiscountType] = useState<'flat' | 'percent'>('flat')
@@ -64,19 +73,11 @@ export function POSPage() {
     }
   }, [])
 
-  // Auto-focus barcode / search on mount
-  useEffect(() => {
-    barcodeInputRef.current?.focus()
-  }, [])
-
-  // Unique categories
+  // Categories list
   const categories = useMemo(() => {
     if (!products) return ['All']
-    const set = new Set<string>()
-    products.forEach((p) => {
-      if (p.category) set.add(p.category)
-    })
-    return ['All', ...Array.from(set).sort()]
+    const cats = Array.from(new Set(products.map((p) => p.category).filter(Boolean)))
+    return ['All', ...cats.sort()]
   }, [products])
 
   // Filtered products for cashier grid
@@ -141,7 +142,7 @@ export function POSPage() {
             productName: product.name,
             sku: product.sku,
             quantity: 1,
-            unitPrice: product.avgSellingPrice,
+            unitPrice: product.suggestedSellingPrice || 0,
             maxAvailable: product.totalStock,
             batches: [],
           },
@@ -167,8 +168,57 @@ export function POSPage() {
     )
   }
 
+  // Dynamic pricing actions
+  const startEditingPrice = (item: CartItem) => {
+    setEditingPriceProductId(item.productId)
+    setTempCustomPrice(
+      item.customPrice !== undefined ? String(item.customPrice) : String(item.unitPrice)
+    )
+    setTempVarianceNote(item.varianceNote || '')
+  }
+
+  const saveCustomPrice = (productId: number) => {
+    const parsed = parseFloat(tempCustomPrice)
+    if (!isNaN(parsed) && parsed >= 0) {
+      setCart((prev) =>
+        prev.map((item) => {
+          if (item.productId === productId) {
+            return {
+              ...item,
+              customPrice: parsed,
+              varianceNote: tempVarianceNote.trim() || undefined,
+            }
+          }
+          return item
+        })
+      )
+    }
+    setEditingPriceProductId(null)
+  }
+
+  const resetCustomPrice = (productId: number) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.productId === productId) {
+          return {
+            ...item,
+            customPrice: undefined,
+            varianceNote: undefined,
+          }
+        }
+        return item
+      })
+    )
+    if (editingPriceProductId === productId) {
+      setEditingPriceProductId(null)
+    }
+  }
+
   const removeFromCart = (productId: number) => {
     setCart((prev) => prev.filter((item) => item.productId !== productId))
+    if (editingPriceProductId === productId) {
+      setEditingPriceProductId(null)
+    }
   }
 
   const clearCart = () => {
@@ -178,11 +228,15 @@ export function POSPage() {
     setCustomerName('')
     setNotes('')
     setCheckoutError(null)
+    setEditingPriceProductId(null)
   }
 
-  // Calculations
+  // Calculations taking dynamic price into account
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+    return cart.reduce((sum, item) => {
+      const effectivePrice = item.customPrice !== undefined ? item.customPrice : item.unitPrice
+      return sum + item.quantity * effectivePrice
+    }, 0)
   }, [cart])
 
   const discountAmount = useMemo(() => {
@@ -253,69 +307,70 @@ export function POSPage() {
       {/* Top Banner: Status & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-pika-100 dark:bg-pika-950/60 text-pika-700 dark:text-pika-300">
+          <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
             <ShoppingCart className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-surface-900 dark:text-white">
-              Point of Sale
+              Point of Sale Checkout
             </h1>
             <p className="text-xs text-surface-500 dark:text-surface-400">
-              Offline-ready cashier register • Instant FIFO batch deduction
+              Offline-ready checkout engine with strict FIFO lot depletion & dynamic pricing
             </p>
           </div>
         </div>
 
-        {/* Offline / Online Status Badge & Cashier info */}
+        {/* Offline Badge & Barcode search */}
         <div className="flex items-center gap-3">
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
               isOnline
-                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50'
-                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50'
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40'
+                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40'
             }`}
           >
-            {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-            <span>{isOnline ? 'Local + Online' : '100% Offline Mode'}</span>
+            {isOnline ? (
+              <>
+                <Wifi className="w-3.5 h-3.5" />
+                <span>Online (Local-First Sync)</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3.5 h-3.5" />
+                <span>100% Offline Active</span>
+              </>
+            )}
           </div>
 
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 font-medium">
-            <span>Cashier:</span>
-            <strong className="text-surface-900 dark:text-white">
-              {currentStaff?.name || 'Staff'}
-            </strong>
+          <div className="relative w-full sm:w-64">
+            <Barcode className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+            <input
+              ref={barcodeInputRef}
+              type="text"
+              placeholder="Scan Barcode or Search SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-surface-900 dark:text-white placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
           </div>
         </div>
       </div>
 
-      {/* Main POS Layout: 2 Columns (Catalog on Left, Active Cart on Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Column: Product Selection Grid (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Barcode Search Box */}
-          <div className="relative">
-            <Barcode className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-pika-500" />
-            <input
-              ref={barcodeInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Scan barcode or type name / SKU (Press Enter to add)..."
-              className="w-full pl-11 pr-4 py-3 rounded-2xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all shadow-sm"
-            />
-          </div>
-
+      {/* Main Grid: Products on Left (7 cols), Cart & Checkout on Right (5 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left Column: Product Grid & Category Filters (7 cols) */}
+        <div className="lg:col-span-7 space-y-3">
           {/* Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
                   selectedCategory === cat
-                    ? 'bg-pika-600 text-white shadow-sm'
-                    : 'bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 border border-surface-200 dark:border-surface-700'
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                    : 'bg-white dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 border border-surface-200 dark:border-surface-700'
                 }`}
               >
                 {cat}
@@ -323,60 +378,66 @@ export function POSPage() {
             ))}
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto pr-1">
+          {/* Product Items Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
             {filteredProducts.map((product) => {
-              const isOutOfStock = product.totalStock <= 0
+              const inStock = product.totalStock > 0
               const cartItem = cart.find((i) => i.productId === product.id)
-              const inCartQty = cartItem?.quantity || 0
+              const cartQty = cartItem ? cartItem.quantity : 0
 
               return (
                 <button
                   key={product.id}
-                  disabled={isOutOfStock}
+                  disabled={!inStock}
                   onClick={() => addToCart(product)}
-                  className={`group relative text-left p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
-                    isOutOfStock
-                      ? 'border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/30 opacity-50 cursor-not-allowed'
-                      : inCartQty > 0
-                      ? 'border-pika-500/80 bg-pika-50/30 dark:bg-pika-950/20 shadow-md shadow-pika-500/5'
-                      : 'border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900 hover:border-pika-400 hover:shadow-md'
+                  className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all duration-150 relative group ${
+                    inStock
+                      ? 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-lg'
+                      : 'bg-surface-100/50 dark:bg-surface-900/30 border-surface-200 dark:border-surface-800/50 opacity-50 cursor-not-allowed'
                   }`}
                 >
-                  {/* In Cart Counter Badge */}
-                  {inCartQty > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-pika-600 text-white text-xs font-bold flex items-center justify-center shadow-md animate-scale-in">
-                      {inCartQty}
+                  {/* Cart count badge */}
+                  {cartQty > 0 && (
+                    <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+                      {cartQty}
                     </span>
                   )}
 
                   <div>
-                    <div className="flex items-center justify-between text-[10px] text-surface-400 mb-1">
-                      <span className="font-mono uppercase">{product.sku}</span>
-                      <span
-                        className={`font-semibold ${
-                          product.isLowStock
-                            ? 'text-amber-500'
-                            : isOutOfStock
-                            ? 'text-red-500'
-                            : 'text-surface-400'
-                        }`}
-                      >
-                        {isOutOfStock ? '0 in stock' : `${product.totalStock} left`}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono text-[10px] text-surface-400 font-semibold truncate max-w-[100px]">
+                        {product.sku}
+                      </span>
+                      <span className="text-[10px] font-medium text-surface-400 uppercase">
+                        {product.category}
                       </span>
                     </div>
-                    <h3 className="font-bold text-xs text-surface-900 dark:text-white line-clamp-2 leading-tight">
+
+                    <h3 className="font-bold text-xs text-surface-900 dark:text-white line-clamp-2">
                       {product.name}
                     </h3>
                   </div>
 
                   <div className="mt-3 pt-2 border-t border-surface-100 dark:border-surface-800/60 flex items-center justify-between">
-                    <span className="text-sm font-black text-pika-600 dark:text-pika-400">
-                      ₦{product.avgSellingPrice.toFixed(2)}
-                    </span>
-                    <span className="p-1 rounded-lg bg-surface-100 dark:bg-surface-800 group-hover:bg-pika-600 group-hover:text-white text-surface-600 dark:text-surface-300 transition-colors">
-                      <Plus className="w-3.5 h-3.5" />
-                    </span>
+                    <div>
+                      <span className="text-[10px] text-surface-400 block">Selling Price</span>
+                      <span className="font-black text-xs text-purple-600 dark:text-purple-400">
+                        {formatCurrency(product.suggestedSellingPrice || 0)}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-surface-400 block">Stock</span>
+                      <span
+                        className={`text-xs font-bold ${
+                          product.totalStock <= product.reorderLevel
+                            ? 'text-amber-500'
+                            : 'text-surface-700 dark:text-surface-300'
+                        }`}
+                      >
+                        {product.totalStock} {product.unit || 'pcs'}
+                      </span>
+                    </div>
                   </div>
                 </button>
               )
@@ -390,11 +451,11 @@ export function POSPage() {
             {/* Cart Header */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-800/30">
               <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-pika-500" />
+                <ShoppingCart className="w-4 h-4 text-purple-500" />
                 <h2 className="font-bold text-sm text-surface-900 dark:text-white">
                   Current Sale Cart
                 </h2>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-pika-100 dark:bg-pika-950/60 text-pika-700 dark:text-pika-300 font-semibold">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold">
                   {cart.length} item{cart.length === 1 ? '' : 's'}
                 </span>
               </div>
@@ -410,61 +471,168 @@ export function POSPage() {
             </div>
 
             {/* Cart Items List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[220px] max-h-[300px]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5 min-h-[220px] max-h-[320px]">
               {cart.length > 0 ? (
-                cart.map((item) => (
-                  <div
-                    key={item.productId}
-                    className="p-3 rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50/60 dark:bg-surface-800/40 flex items-center justify-between gap-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[10px] text-pika-600 dark:text-pika-400 font-semibold">
-                          {item.sku}
-                        </span>
+                cart.map((item) => {
+                  const effectivePrice =
+                    item.customPrice !== undefined ? item.customPrice : item.unitPrice
+                  const priceVariance =
+                    item.customPrice !== undefined ? item.customPrice - item.unitPrice : 0
+                  const isEditingPrice = editingPriceProductId === item.productId
+
+                  return (
+                    <div
+                      key={item.productId}
+                      className="p-3 rounded-2xl border border-surface-200 dark:border-surface-800 bg-surface-50/60 dark:bg-surface-800/40 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                              {item.sku}
+                            </span>
+                            {/* Dynamic Price Override Badge */}
+                            {priceVariance !== 0 && (
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full inline-flex items-center gap-0.5 ${
+                                  priceVariance < 0
+                                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                                    : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                }`}
+                              >
+                                <Tag className="w-2.5 h-2.5" />
+                                {priceVariance > 0 ? '+' : ''}
+                                {formatCurrency(priceVariance)}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-bold text-surface-900 dark:text-white truncate">
+                            {item.productName}
+                          </h4>
+                          <div className="flex items-center gap-1 text-[11px] text-surface-500 dark:text-surface-400">
+                            <span>{formatCurrency(effectivePrice)} each</span>
+                            {item.customPrice !== undefined && (
+                              <span className="line-through text-[10px] opacity-60">
+                                ({formatCurrency(item.unitPrice)})
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                isEditingPrice
+                                  ? setEditingPriceProductId(null)
+                                  : startEditingPrice(item)
+                              }
+                              className="text-purple-500 hover:text-purple-400 ml-1 p-0.5 rounded"
+                              title="Negotiate / Override Unit Price"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            {item.customPrice !== undefined && (
+                              <button
+                                type="button"
+                                onClick={() => resetCustomPrice(item.productId)}
+                                className="text-surface-400 hover:text-surface-200 p-0.5 rounded"
+                                title="Reset to standard catalog price"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quantity Selector */}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="p-1 rounded-lg bg-white dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 shadow-sm"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="w-7 text-center font-bold text-xs text-surface-900 dark:text-white">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            disabled={item.quantity >= item.maxAvailable}
+                            className="p-1 rounded-lg bg-white dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 shadow-sm disabled:opacity-40"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.productId)}
+                            className="p-1 rounded-lg text-surface-400 hover:text-red-500 transition-colors ml-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Item Total */}
+                        <div className="text-right min-w-[70px]">
+                          <span className="text-xs font-bold text-surface-900 dark:text-white block font-mono">
+                            {formatCurrency(item.quantity * effectivePrice)}
+                          </span>
+                        </div>
                       </div>
-                      <h4 className="text-xs font-bold text-surface-900 dark:text-white truncate">
-                        {item.productName}
-                      </h4>
-                      <span className="text-[11px] text-surface-500 dark:text-surface-400">
-                        ₦{item.unitPrice.toFixed(2)} each
-                      </span>
-                    </div>
 
-                    {/* Quantity Selector */}
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                        className="p-1 rounded-lg bg-white dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 shadow-sm"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-7 text-center font-bold text-xs text-surface-900 dark:text-white">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        disabled={item.quantity >= item.maxAvailable}
-                        className="p-1 rounded-lg bg-white dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 shadow-sm disabled:opacity-40"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => removeFromCart(item.productId)}
-                        className="p-1 rounded-lg text-surface-400 hover:text-red-500 transition-colors ml-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Inline Dynamic Pricing Popover / Drawer */}
+                      {isEditingPrice && (
+                        <div className="p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/30 space-y-2 animate-in fade-in">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-purple-300">
+                            <span>Negotiated Unit Price</span>
+                            <span className="text-[10px] text-surface-400">
+                              Catalog: {formatCurrency(item.unitPrice)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-surface-400 block mb-0.5">
+                                Unit Price (₦)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={tempCustomPrice}
+                                onChange={(e) => setTempCustomPrice(e.target.value)}
+                                className="w-full px-2 py-1 bg-surface-900 border border-purple-500/40 rounded text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-surface-400 block mb-0.5">
+                                Negotiation Note
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Bulk discount"
+                                value={tempVarianceNote}
+                                onChange={(e) => setTempVarianceNote(e.target.value)}
+                                className="w-full px-2 py-1 bg-surface-900 border border-surface-700 rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setEditingPriceProductId(null)}
+                              className="px-2 py-1 text-[11px] text-surface-400 hover:text-white"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => saveCustomPrice(item.productId)}
+                              className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded text-[11px] font-semibold inline-flex items-center gap-1 shadow-sm"
+                            >
+                              <Check className="w-3 h-3" />
+                              Apply Price
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Item Total */}
-                    <div className="text-right min-w-[70px]">
-                      <span className="text-xs font-bold text-surface-900 dark:text-white block">
-                        ₦{(item.quantity * item.unitPrice).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               ) : (
                 <div className="flex flex-col items-center justify-center h-full py-10 text-surface-400 text-center">
                   <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
@@ -480,15 +648,15 @@ export function POSPage() {
             <div className="px-5 py-3 border-t border-surface-200 dark:border-surface-800 bg-surface-50/30 dark:bg-surface-800/20 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-surface-500 dark:text-surface-400 flex items-center gap-1">
-                  <Percent className="w-3.5 h-3.5 text-pika-500" />
-                  Discount
+                  <Percent className="w-3.5 h-3.5 text-purple-500" />
+                  Order Discount
                 </span>
                 <div className="flex items-center gap-1">
                   <div className="flex rounded-lg border border-surface-200 dark:border-surface-700 p-0.5 text-[10px]">
                     <button
                       onClick={() => setDiscountType('flat')}
                       className={`px-1.5 py-0.5 rounded ${
-                        discountType === 'flat' ? 'bg-pika-600 text-white font-bold' : 'text-surface-400'
+                        discountType === 'flat' ? 'bg-purple-600 text-white font-bold' : 'text-surface-400'
                       }`}
                     >
                       ₦
@@ -496,7 +664,7 @@ export function POSPage() {
                     <button
                       onClick={() => setDiscountType('percent')}
                       className={`px-1.5 py-0.5 rounded ${
-                        discountType === 'percent' ? 'bg-pika-600 text-white font-bold' : 'text-surface-400'
+                        discountType === 'percent' ? 'bg-purple-600 text-white font-bold' : 'text-surface-400'
                       }`}
                     >
                       %
@@ -518,12 +686,12 @@ export function POSPage() {
                     type="checkbox"
                     checked={includeTax}
                     onChange={(e) => setIncludeTax(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded text-pika-600 focus:ring-pika-500"
+                    className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500"
                   />
                   <span>Include VAT / Tax ({taxRate}%)</span>
                 </label>
-                <span className="font-semibold text-surface-700 dark:text-surface-300">
-                  +₦{taxAmount.toFixed(2)}
+                <span className="font-semibold text-surface-700 dark:text-surface-300 font-mono">
+                  +{formatCurrency(taxAmount)}
                 </span>
               </div>
             </div>
@@ -532,20 +700,20 @@ export function POSPage() {
             <div className="px-5 py-3 border-t border-surface-200 dark:border-surface-800 space-y-1.5 text-xs">
               <div className="flex justify-between text-surface-500 dark:text-surface-400">
                 <span>Subtotal</span>
-                <span>₦{subtotal.toFixed(2)}</span>
+                <span className="font-mono">{formatCurrency(subtotal)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                   <span>Discount</span>
-                  <span>-₦{discountAmount.toFixed(2)}</span>
+                  <span className="font-mono">-{formatCurrency(discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between items-baseline pt-2 border-t border-surface-200 dark:border-surface-800">
                 <span className="text-sm font-bold text-surface-900 dark:text-white">
                   Grand Total
                 </span>
-                <span className="text-xl font-black bg-gradient-to-r from-pika-600 to-pika-500 bg-clip-text text-transparent">
-                  ₦{grandTotal.toFixed(2)}
+                <span className="text-xl font-black bg-gradient-to-r from-purple-500 to-indigo-400 bg-clip-text text-transparent font-mono">
+                  {formatCurrency(grandTotal)}
                 </span>
               </div>
             </div>
@@ -570,7 +738,7 @@ export function POSPage() {
                       onClick={() => setPaymentMethod(m.id as PaymentMethod)}
                       className={`flex flex-col items-center justify-center p-2 rounded-xl border text-[11px] font-semibold transition-all ${
                         isSelected
-                          ? 'border-pika-500 bg-pika-50/60 dark:bg-pika-950/40 text-pika-600 dark:text-pika-300 shadow-sm'
+                          ? 'border-purple-500 bg-purple-50/60 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 shadow-sm'
                           : 'border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-50'
                       }`}
                     >
@@ -581,7 +749,7 @@ export function POSPage() {
                 })}
               </div>
 
-              {/* Cash Tendered Calculator */}
+              {/* Cash Tendered Calculator with Nigerian Naira Denominations */}
               {paymentMethod === 'cash' && (
                 <div className="p-3 rounded-xl bg-surface-50 dark:bg-surface-800/40 border border-surface-200 dark:border-surface-700 space-y-2 animate-fade-in">
                   <div className="flex items-center justify-between text-xs">
@@ -594,31 +762,41 @@ export function POSPage() {
                       value={cashTendered}
                       onChange={(e) => setCashTendered(e.target.value)}
                       placeholder="0.00"
-                      className="w-24 px-2 py-1 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-right font-bold text-xs focus:outline-none"
+                      className="w-28 px-2 py-1 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-right font-bold text-xs focus:outline-none font-mono"
                     />
                   </div>
 
                   {/* Quick cash shortcut pills */}
-                  <div className="flex items-center justify-end gap-1.5">
+                  <div className="flex items-center justify-end gap-1.5 flex-wrap">
                     <button
                       onClick={() => handleSetQuickCash(grandTotal)}
-                      className="px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-pika-600 hover:text-white transition-colors"
+                      className="px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-purple-600 hover:text-white transition-colors"
                     >
-                      Exact (₦{grandTotal.toFixed(0)})
+                      Exact ({formatCurrency(grandTotal, { minimumFractionDigits: 0, maximumFractionDigits: 0 })})
                     </button>
-                    <button
-                      onClick={() => handleSetQuickCash(Math.ceil(grandTotal / 1000) * 1000)}
-                      className="px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-pika-600 hover:text-white transition-colors"
-                    >
-                      ₦{(Math.ceil(grandTotal / 1000) * 1000).toLocaleString()}
-                    </button>
+                    {grandTotal > 0 && (
+                      <button
+                        onClick={() => handleSetQuickCash(Math.ceil(grandTotal / 1000) * 1000)}
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-purple-600 hover:text-white transition-colors font-mono"
+                      >
+                        ₦{(Math.ceil(grandTotal / 1000) * 1000).toLocaleString('en-NG')}
+                      </button>
+                    )}
+                    {grandTotal > 1000 && (
+                      <button
+                        onClick={() => handleSetQuickCash(Math.ceil(grandTotal / 5000) * 5000)}
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-surface-200 dark:bg-surface-700 text-surface-700 dark:text-surface-200 hover:bg-purple-600 hover:text-white transition-colors font-mono"
+                      >
+                        ₦{(Math.ceil(grandTotal / 5000) * 5000).toLocaleString('en-NG')}
+                      </button>
+                    )}
                   </div>
 
                   {/* Live Change Amount */}
                   <div className="flex items-center justify-between pt-1 border-t border-surface-200 dark:border-surface-700 text-xs">
                     <span className="font-semibold text-surface-500">Change Due:</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      ₦{cashChange.toFixed(2)}
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                      {formatCurrency(cashChange)}
                     </span>
                   </div>
                 </div>
@@ -638,14 +816,14 @@ export function POSPage() {
               <button
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleCheckout}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pika-600 via-pika-700 to-pika-800 hover:from-pika-700 hover:to-pika-900 text-white font-bold text-sm shadow-xl shadow-pika-700/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 hover:from-purple-800 hover:to-indigo-700 text-white font-bold text-sm shadow-xl shadow-purple-700/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <span>Deducting FIFO Batches...</span>
                 ) : (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    <span>Complete Sale (₦{grandTotal.toFixed(2)})</span>
+                    <span>Complete Sale ({formatCurrency(grandTotal)})</span>
                   </>
                 )}
               </button>

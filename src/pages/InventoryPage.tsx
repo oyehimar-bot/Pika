@@ -6,7 +6,7 @@ import {
   Layers,
   AlertTriangle,
   Clock,
-  DollarSign,
+  TrendingUp,
   LayoutGrid,
   Table as TableIcon,
   Sparkles,
@@ -14,6 +14,8 @@ import {
   Edit2,
   Trash2,
   Barcode as BarcodeIcon,
+  FileText,
+  DollarSign,
 } from 'lucide-react'
 import type { ProductWithStock } from '@/db'
 import {
@@ -25,6 +27,9 @@ import { seedSampleInventory, deleteProduct } from '@/db'
 import { ProductModal } from '@/components/inventory/ProductModal'
 import { BatchModal } from '@/components/inventory/BatchModal'
 import { BatchListModal } from '@/components/inventory/BatchListModal'
+import { InvoiceImportModal } from '@/components/inventory/InvoiceImportModal'
+import { useAppSettings } from '@/context/AppSettingsContext'
+import { formatCurrency, formatNumber } from '@/utils/currency'
 
 type SortField = 'name' | 'stock' | 'value' | 'date'
 type StockStatusFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
@@ -33,6 +38,7 @@ export function InventoryPage() {
   const products = useProducts()
   const valuation = useInventoryValuation()
   const expiringBatches = useExpiringBatches(14)
+  const { showExpiry } = useAppSettings()
 
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('')
@@ -50,6 +56,7 @@ export function InventoryPage() {
   const [batchModalProduct, setBatchModalProduct] = useState<ProductWithStock | null>(null)
 
   const [inspectingProduct, setInspectingProduct] = useState<ProductWithStock | null>(null)
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
 
   // Unique categories list
   const categories = useMemo(() => {
@@ -61,21 +68,23 @@ export function InventoryPage() {
     return ['All', ...Array.from(set).sort()]
   }, [products])
 
-  // Filtered & Sorted products
+  // Filtered & sorted products list
   const filteredProducts = useMemo(() => {
     if (!products) return []
 
     return products
       .filter((p) => {
-        // Search query
+        // Search text matching
         if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase()
-          const matches =
-            p.name.toLowerCase().includes(q) ||
-            p.sku.toLowerCase().includes(q) ||
-            p.barcode.toLowerCase().includes(q) ||
-            p.category.toLowerCase().includes(q)
-          if (!matches) return false
+          const q = searchQuery.toLowerCase().trim()
+          const matchName = p.name.toLowerCase().includes(q)
+          const matchSku = p.sku.toLowerCase().includes(q)
+          const matchCategory = p.category.toLowerCase().includes(q)
+          const matchBarcode = p.barcode ? p.barcode.toLowerCase().includes(q) : false
+
+          if (!matchName && !matchSku && !matchCategory && !matchBarcode) {
+            return false
+          }
         }
 
         // Category filter
@@ -83,29 +92,35 @@ export function InventoryPage() {
           return false
         }
 
-        // Status filter
+        // Stock status filter
         if (statusFilter === 'in_stock' && p.totalStock <= 0) return false
         if (statusFilter === 'low_stock' && !p.isLowStock) return false
         if (statusFilter === 'out_of_stock' && p.totalStock > 0) return false
-        if (statusFilter === 'expiring' && !p.isExpiringSoon) return false
+        if (statusFilter === 'expiring') {
+          if (!showExpiry || !p.isExpiringSoon) return false
+        }
 
         return true
       })
       .sort((a, b) => {
         let diff = 0
-        if (sortField === 'name') {
-          diff = a.name.localeCompare(b.name)
-        } else if (sortField === 'stock') {
-          diff = a.totalStock - b.totalStock
-        } else if (sortField === 'value') {
-          diff = a.totalValue - b.totalValue
-        } else if (sortField === 'date') {
-          diff =
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        switch (sortField) {
+          case 'name':
+            diff = a.name.localeCompare(b.name)
+            break
+          case 'stock':
+            diff = a.totalStock - b.totalStock
+            break
+          case 'value':
+            diff = a.totalValue - b.totalValue
+            break
+          case 'date':
+            diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            break
         }
         return sortAsc ? diff : -diff
       })
-  }, [products, searchQuery, selectedCategory, statusFilter, sortField, sortAsc])
+  }, [products, searchQuery, selectedCategory, statusFilter, sortField, sortAsc, showExpiry])
 
   const handleOpenAddProduct = () => {
     setProductToEdit(null)
@@ -139,11 +154,11 @@ export function InventoryPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-            <Package className="w-7 h-7 text-pika-500" />
+            <Package className="w-7 h-7 text-purple-500" />
             Inventory & Batch Management
           </h1>
           <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-            Real-time product catalog, FIFO lot costing, and automated expiration monitoring
+            Real-time catalog, strict FIFO lot costing, and automated expiration monitoring
           </p>
         </div>
 
@@ -151,25 +166,34 @@ export function InventoryPage() {
           {(!products || products.length === 0) && (
             <button
               onClick={handleLoadDemo}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-200 text-sm font-semibold hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-200 text-xs font-semibold hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors shadow-sm"
             >
-              <Sparkles className="w-4 h-4 text-pika-500" />
+              <Sparkles className="w-4 h-4 text-purple-500" />
               Load Sample Catalog
             </button>
           )}
 
+          {/* Smart PDF Invoice Parser Button */}
+          <button
+            onClick={() => setIsInvoiceModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 text-xs font-bold hover:bg-purple-500/20 transition-all shadow-sm"
+          >
+            <FileText className="w-4 h-4 text-purple-500" />
+            <span>Import PDF Invoice</span>
+          </button>
+
           <button
             onClick={() => handleOpenReceiveBatch()}
             disabled={!products || products.length === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-pika-200 dark:border-pika-800/80 bg-pika-50/80 dark:bg-pika-950/40 text-pika-700 dark:text-pika-300 text-sm font-semibold hover:bg-pika-100 dark:hover:bg-pika-900/50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800/80 bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Layers className="w-4 h-4 text-pika-600 dark:text-pika-400" />
+            <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             Receive Batch
           </button>
 
           <button
             onClick={handleOpenAddProduct}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pika-600 to-pika-700 text-white font-semibold text-sm hover:from-pika-700 hover:to-pika-800 transition-all shadow-lg shadow-pika-600/25 hover:shadow-pika-600/40"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 text-white font-semibold text-xs hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/25"
           >
             <Plus className="w-4 h-4" />
             Add Product
@@ -183,14 +207,14 @@ export function InventoryPage() {
         <div className="p-4 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm">
           <div className="flex items-center justify-between text-surface-500 dark:text-surface-400">
             <span className="text-xs font-medium">Catalog Products</span>
-            <Package className="w-4 h-4 text-pika-500" />
+            <Package className="w-4 h-4 text-purple-500" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-surface-900 dark:text-white">
+            <span className="text-2xl font-bold text-surface-900 dark:text-white font-mono">
               {valuation?.totalProducts ?? 0}
             </span>
             <span className="text-xs text-surface-400">
-              ({valuation?.totalUnits ?? 0} units total)
+              ({formatNumber(valuation?.totalUnits ?? 0)} units total)
             </span>
           </div>
         </div>
@@ -202,8 +226,8 @@ export function InventoryPage() {
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-surface-900 dark:text-white">
-              ₦{valuation ? valuation.totalCostValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}
+            <span className="text-2xl font-bold text-surface-900 dark:text-white font-mono">
+              {formatCurrency(valuation?.totalCostValue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
               FIFO Basis
@@ -225,33 +249,48 @@ export function InventoryPage() {
             <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+            <span className="text-2xl font-bold text-amber-600 dark:text-amber-400 font-mono">
               {valuation?.lowStockCount ?? 0}
             </span>
             <span className="text-xs text-surface-400">at or below threshold</span>
           </div>
         </div>
 
-        {/* Expiring Soon */}
-        <div
-          onClick={() => setStatusFilter(statusFilter === 'expiring' ? 'all' : 'expiring')}
-          className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${
-            statusFilter === 'expiring'
-              ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/20'
-              : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800 hover:border-rose-400'
-          }`}
-        >
-          <div className="flex items-center justify-between text-surface-500 dark:text-surface-400">
-            <span className="text-xs font-medium">Expiring Soon (14d)</span>
-            <Clock className="w-4 h-4 text-rose-500" />
+        {/* Expiring Soon or Projected Margin */}
+        {showExpiry ? (
+          <div
+            onClick={() => setStatusFilter(statusFilter === 'expiring' ? 'all' : 'expiring')}
+            className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${
+              statusFilter === 'expiring'
+                ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/20'
+                : 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800 hover:border-rose-400'
+            }`}
+          >
+            <div className="flex items-center justify-between text-surface-500 dark:text-surface-400">
+              <span className="text-xs font-medium">Expiring Soon (14d)</span>
+              <Clock className="w-4 h-4 text-rose-500" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">
+                {expiringBatches?.length ?? 0}
+              </span>
+              <span className="text-xs text-surface-400">batches to rotate</span>
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-              {expiringBatches?.length ?? 0}
-            </span>
-            <span className="text-xs text-surface-400">batches to rotate</span>
+        ) : (
+          <div className="p-4 rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-sm">
+            <div className="flex items-center justify-between text-surface-500 dark:text-surface-400">
+              <span className="text-xs font-medium">Projected Margin</span>
+              <TrendingUp className="w-4 h-4 text-purple-500" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-purple-600 dark:text-purple-400 font-mono">
+                {formatCurrency(valuation?.potentialProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+              <span className="text-xs text-surface-400">estimated profit</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Filter and Control Toolbar */}
@@ -265,7 +304,7 @@ export function InventoryPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by product name, SKU, category, or barcode..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
             />
           </div>
 
@@ -286,7 +325,7 @@ export function InventoryPage() {
               </select>
               <button
                 onClick={() => setSortAsc(!sortAsc)}
-                className="text-[11px] font-bold text-pika-600 dark:text-pika-400 ml-1 hover:underline"
+                className="text-[11px] font-bold text-purple-600 dark:text-purple-400 ml-1 hover:underline"
               >
                 {sortAsc ? 'ASC' : 'DESC'}
               </button>
@@ -298,7 +337,7 @@ export function InventoryPage() {
                 onClick={() => setViewMode('table')}
                 className={`p-2 rounded-lg text-xs font-medium transition-colors ${
                   viewMode === 'table'
-                    ? 'bg-pika-600 text-white shadow-sm'
+                    ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
                 }`}
                 title="Table view"
@@ -309,7 +348,7 @@ export function InventoryPage() {
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg text-xs font-medium transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-pika-600 text-white shadow-sm'
+                    ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
                 }`}
                 title="Grid view"
@@ -330,7 +369,7 @@ export function InventoryPage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                   selectedCategory === cat
-                    ? 'bg-pika-600 text-white shadow-sm'
+                    ? 'bg-purple-600 text-white shadow-sm'
                     : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
                 }`}
               >
@@ -361,16 +400,18 @@ export function InventoryPage() {
             >
               Low Stock
             </button>
-            <button
-              onClick={() => setStatusFilter('expiring')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
-                statusFilter === 'expiring'
-                  ? 'bg-rose-500 text-white font-semibold'
-                  : 'text-rose-600 dark:text-rose-400 hover:underline'
-              }`}
-            >
-              Expiring
-            </button>
+            {showExpiry && (
+              <button
+                onClick={() => setStatusFilter('expiring')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  statusFilter === 'expiring'
+                    ? 'bg-rose-500 text-white font-semibold'
+                    : 'text-rose-600 dark:text-rose-400 hover:underline'
+                }`}
+              >
+                Expiring
+              </button>
+            )}
             <button
               onClick={() => setStatusFilter('out_of_stock')}
               className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
@@ -418,7 +459,7 @@ export function InventoryPage() {
                         {/* Product & SKU */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-pika-100 dark:bg-pika-950/60 text-pika-700 dark:text-pika-300 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold text-xs flex-shrink-0">
                               {product.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -426,7 +467,7 @@ export function InventoryPage() {
                                 {product.name}
                               </p>
                               <div className="flex items-center gap-2 mt-0.5 text-xs text-surface-400">
-                                <span className="font-mono font-medium text-pika-600 dark:text-pika-400">
+                                <span className="font-mono font-medium text-purple-600 dark:text-purple-400">
                                   {product.sku}
                                 </span>
                                 {product.barcode && (
@@ -454,7 +495,7 @@ export function InventoryPage() {
                               e.stopPropagation()
                               setInspectingProduct(product)
                             }}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-pika-50 dark:bg-pika-950/50 text-pika-700 dark:text-pika-300 hover:underline cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 hover:underline cursor-pointer"
                           >
                             <Layers className="w-3 h-3" />
                             {product.activeBatchCount} lot{product.activeBatchCount === 1 ? '' : 's'}
@@ -464,7 +505,7 @@ export function InventoryPage() {
                         {/* Stock Level & Status Badge */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-surface-900 dark:text-white">
+                            <span className="font-bold text-surface-900 dark:text-white font-mono">
                               {product.totalStock} {product.unit}s
                             </span>
                             {isOutOfStock ? (
@@ -483,22 +524,22 @@ export function InventoryPage() {
                         </td>
 
                         {/* Avg Cost */}
-                        <td className="py-4 px-4 text-surface-700 dark:text-surface-300 font-medium">
-                          ₦{product.avgCostPrice.toFixed(2)}
+                        <td className="py-4 px-4 text-surface-700 dark:text-surface-300 font-medium font-mono">
+                          {formatCurrency(product.avgCostPrice)}
                         </td>
 
                         {/* Selling Price */}
-                        <td className="py-4 px-4 text-surface-900 dark:text-white font-semibold">
-                          ₦{product.avgSellingPrice.toFixed(2)}
+                        <td className="py-4 px-4 text-surface-900 dark:text-white font-semibold font-mono">
+                          {formatCurrency(product.suggestedSellingPrice || product.avgSellingPrice)}
                         </td>
 
                         {/* Total FIFO Valuation */}
-                        <td className="py-4 px-4">
-                          <span className="font-bold text-pika-600 dark:text-pika-400">
-                            ₦{product.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        <td className="py-4 px-4 font-mono">
+                          <span className="font-bold text-purple-600 dark:text-purple-400">
+                            {formatCurrency(product.totalValue)}
                           </span>
-                          {product.isExpiringSoon && (
-                            <div className="flex items-center gap-1 text-[11px] text-rose-500 font-semibold mt-0.5">
+                          {showExpiry && product.isExpiringSoon && (
+                            <div className="flex items-center gap-1 text-[11px] text-rose-500 font-semibold mt-0.5 font-sans">
                               <Clock className="w-3 h-3" />
                               Near Expiry
                             </div>
@@ -510,14 +551,14 @@ export function InventoryPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setInspectingProduct(product)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-pika-600 hover:text-white transition-colors"
+                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-surface-100 dark:bg-surface-800 text-surface-700 dark:text-surface-200 hover:bg-purple-600 hover:text-white transition-colors"
                               title="Inspect Batches"
                             >
-                              Batches
+                              Lots
                             </button>
                             <button
                               onClick={() => handleOpenReceiveBatch(product)}
-                              className="p-1.5 rounded-lg text-surface-500 hover:text-pika-600 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+                              className="p-1.5 rounded-lg text-surface-500 hover:text-purple-600 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
                               title="Receive Stock Batch"
                             >
                               <Plus className="w-4 h-4" />
@@ -556,19 +597,19 @@ export function InventoryPage() {
                 <div
                   key={product.id}
                   onClick={() => setInspectingProduct(product)}
-                  className="group relative overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-5 shadow-sm hover:shadow-lg hover:shadow-pika-500/5 hover:-translate-y-0.5 transition-all cursor-pointer"
+                  className="group relative overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-5 shadow-sm hover:shadow-lg hover:shadow-purple-500/5 hover:-translate-y-0.5 transition-all cursor-pointer"
                 >
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pika-500 to-pika-700 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
                         {product.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-bold text-surface-900 dark:text-white text-base group-hover:text-pika-600 dark:group-hover:text-pika-400 transition-colors line-clamp-1">
+                        <h3 className="font-bold text-surface-900 dark:text-white text-base group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">
                           {product.name}
                         </h3>
-                        <span className="font-mono text-xs text-pika-600 dark:text-pika-400 font-semibold">
+                        <span className="font-mono text-xs text-purple-600 dark:text-purple-400 font-semibold">
                           {product.sku}
                         </span>
                       </div>
@@ -576,11 +617,11 @@ export function InventoryPage() {
 
                     {isOutOfStock ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400">
-                        OUT OF STOCK
+                        OUT
                       </span>
                     ) : isLowStock ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400">
-                        LOW STOCK
+                        LOW
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
@@ -593,9 +634,9 @@ export function InventoryPage() {
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 text-xs">
                     <div>
                       <span className="text-surface-400 block text-[11px]">Total Stock</span>
-                      <span className="text-lg font-bold text-surface-900 dark:text-white">
+                      <span className="text-lg font-bold text-surface-900 dark:text-white font-mono">
                         {product.totalStock}{' '}
-                        <span className="text-xs font-normal text-surface-400">
+                        <span className="text-xs font-normal text-surface-400 font-sans">
                           {product.unit}s
                         </span>
                       </span>
@@ -603,8 +644,8 @@ export function InventoryPage() {
 
                     <div>
                       <span className="text-surface-400 block text-[11px]">FIFO Valuation</span>
-                      <span className="text-lg font-bold text-pika-600 dark:text-pika-400">
-                        ₦{product.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      <span className="text-lg font-bold text-purple-600 dark:text-purple-400 font-mono">
+                        {formatCurrency(product.totalValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </span>
                     </div>
 
@@ -616,15 +657,15 @@ export function InventoryPage() {
                     </div>
 
                     <div>
-                      <span className="text-surface-400 block text-[11px]">Reorder Level</span>
-                      <span className="font-semibold text-surface-700 dark:text-surface-300">
-                        {product.reorderLevel} units
+                      <span className="text-surface-400 block text-[11px]">Selling Price</span>
+                      <span className="font-semibold text-surface-700 dark:text-surface-300 font-mono">
+                        {formatCurrency(product.suggestedSellingPrice || product.avgSellingPrice)}
                       </span>
                     </div>
                   </div>
 
                   {/* Near Expiry Alert Banner */}
-                  {product.isExpiringSoon && (
+                  {showExpiry && product.isExpiringSoon && (
                     <div className="mt-3 flex items-center gap-1.5 p-2 rounded-xl bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                       <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                       <span>Has batch lot expiring soon!</span>
@@ -638,7 +679,7 @@ export function InventoryPage() {
                   >
                     <button
                       onClick={() => setInspectingProduct(product)}
-                      className="flex items-center gap-1 text-xs font-semibold text-pika-600 dark:text-pika-400 hover:underline"
+                      className="flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline"
                     >
                       <Layers className="w-3.5 h-3.5" />
                       Inspect Batches
@@ -647,7 +688,7 @@ export function InventoryPage() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleOpenReceiveBatch(product)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-pika-50 dark:bg-pika-950/60 text-pika-600 dark:text-pika-400 hover:bg-pika-600 hover:text-white transition-colors"
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 hover:bg-purple-600 hover:text-white transition-colors"
                       >
                         + Batch
                       </button>
@@ -667,7 +708,7 @@ export function InventoryPage() {
       ) : (
         /* Empty State */
         <div className="rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-12 text-center shadow-sm">
-          <div className="w-14 h-14 rounded-2xl bg-pika-50 dark:bg-pika-950/40 text-pika-500 mx-auto flex items-center justify-center mb-4 shadow-inner">
+          <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-500 mx-auto flex items-center justify-center mb-4 shadow-inner">
             <Package className="w-7 h-7" />
           </div>
           <h3 className="text-lg font-bold text-surface-900 dark:text-white">
@@ -678,7 +719,7 @@ export function InventoryPage() {
           <p className="text-xs text-surface-500 dark:text-surface-400 mt-1.5 max-w-sm mx-auto">
             {searchQuery || selectedCategory !== 'All' || statusFilter !== 'all'
               ? 'Try adjusting your search criteria or resetting filters to view all inventory.'
-              : 'Add your first product or load the pre-configured demo inventory to get started.'}
+              : 'Add your first product, import a supplier PDF invoice, or load demo inventory to get started.'}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
@@ -699,12 +740,19 @@ export function InventoryPage() {
                   onClick={handleLoadDemo}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-200 text-xs font-semibold hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
                 >
-                  <Sparkles className="w-4 h-4 text-pika-500" />
+                  <Sparkles className="w-4 h-4 text-purple-500" />
                   Load Demo Products
                 </button>
                 <button
+                  onClick={() => setIsInvoiceModalOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-400 text-xs font-semibold hover:bg-purple-500/20 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Import PDF Invoice
+                </button>
+                <button
                   onClick={handleOpenAddProduct}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-pika-600 hover:bg-pika-700 text-white text-xs font-semibold shadow-md transition-colors"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Add First Product
@@ -736,6 +784,15 @@ export function InventoryPage() {
         onClose={() => setInspectingProduct(null)}
         product={inspectingProduct}
         onOpenReceiveBatch={(prod) => handleOpenReceiveBatch(prod)}
+      />
+
+      {/* Smart PDF Invoice Parser & Staging Modal */}
+      <InvoiceImportModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        onSuccess={() => {
+          // Triggers re-render through Dexie hooks
+        }}
       />
     </div>
   )

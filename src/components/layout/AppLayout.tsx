@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -9,6 +10,9 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-50 text-surface-900 dark:bg-surface-950 dark:text-surface-100 transition-colors duration-300">
+      {/* Dynamic SME Onboarding Setup Modal */}
+      <OnboardingModal />
+
       {/* Mobile overlay */}
       {mobileSidebarOpen && (
         <div
@@ -20,7 +24,7 @@ export function AppLayout() {
       {/* Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(prev => !prev)}
+        onToggle={() => setSidebarCollapsed((prev) => !prev)}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
       />
@@ -41,4 +45,3 @@ export function AppLayout() {
     </div>
   )
 }
-

@@ -478,6 +478,7 @@ function computeProductStock(
     totalValue: roundCurrency(totalValue),
     avgCostPrice,
     avgSellingPrice,
+    suggestedSellingPrice: activeBatches[0]?.sellingPrice || avgSellingPrice,
     activeBatchCount: activeBatches.length,
     earliestExpiry,
     isLowStock: totalStock > 0 && totalStock <= product.reorderLevel,

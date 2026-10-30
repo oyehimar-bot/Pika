@@ -4,9 +4,9 @@ import {
   Package,
   ShoppingCart,
   AlertTriangle,
-  DollarSign,
   Clock,
   ArrowRight,
+  ShieldCheck,
 } from 'lucide-react'
 import {
   useInventoryValuation,
@@ -14,24 +14,31 @@ import {
   useProducts,
   useExpiringBatches,
 } from '@/hooks/useDatabase'
+import { useAppSettings } from '@/context/AppSettingsContext'
+import { formatCurrency, formatNumber } from '@/utils/currency'
 
 export function DashboardPage() {
   const valuation = useInventoryValuation()
   const todaySales = useTodaySales()
   const products = useProducts()
   const expiringBatches = useExpiringBatches(14)
+  const { showExpiry, storeName } = useAppSettings()
 
   const topProducts = products
     ? [...products].sort((a, b) => b.totalStock - a.totalStock).slice(0, 5)
     : []
 
+  const highestValueProducts = products
+    ? [...products].sort((a, b) => b.totalValue - a.totalValue).slice(0, 5)
+    : []
+
   const metrics = [
     {
       label: 'Today Revenue',
-      value: `₦${todaySales ? todaySales.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}`,
-      change: `${todaySales?.count ?? 0} sales`,
+      value: formatCurrency(todaySales?.totalRevenue || 0),
+      change: `${todaySales?.count ?? 0} sales recorded`,
       changeType: 'up' as const,
-      icon: DollarSign,
+      icon: TrendingUp,
       color: 'from-emerald-500 to-emerald-600',
       bgLight: 'bg-emerald-50',
       bgDark: 'dark:bg-emerald-950/30',
@@ -40,21 +47,21 @@ export function DashboardPage() {
     {
       label: 'Products in Catalog',
       value: `${valuation?.totalProducts ?? 0}`,
-      change: `${valuation?.totalUnits ?? 0} total units`,
+      change: `${formatNumber(valuation?.totalUnits ?? 0)} total units`,
       changeType: 'neutral' as const,
       icon: Package,
-      color: 'from-pika-500 to-pika-700',
-      bgLight: 'bg-pika-50',
-      bgDark: 'dark:bg-pika-950/30',
-      textColor: 'text-pika-600 dark:text-pika-400',
+      color: 'from-purple-500 to-purple-700',
+      bgLight: 'bg-purple-50',
+      bgDark: 'dark:bg-purple-950/30',
+      textColor: 'text-purple-600 dark:text-purple-400',
     },
     {
       label: 'Inventory FIFO Value',
-      value: `₦${valuation ? valuation.totalCostValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'}`,
-      change: `₦${valuation ? valuation.potentialProfit.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '0'} profit potential`,
+      value: formatCurrency(valuation?.totalCostValue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+      change: `${formatCurrency(valuation?.potentialProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} projected profit`,
       changeType: 'up' as const,
       icon: TrendingUp,
-      color: 'from-purple-500 to-indigo-600',
+      color: 'from-purple-600 to-indigo-600',
       bgLight: 'bg-purple-50',
       bgDark: 'dark:bg-purple-950/30',
       textColor: 'text-purple-600 dark:text-purple-400',
@@ -62,7 +69,7 @@ export function DashboardPage() {
     {
       label: 'Low Stock Alerts',
       value: `${valuation?.lowStockCount ?? 0}`,
-      change: valuation && valuation.lowStockCount > 0 ? 'Requires reorder' : 'Healthy stock',
+      change: valuation && valuation.lowStockCount > 0 ? 'Requires restock' : 'Healthy stock levels',
       changeType: valuation && valuation.lowStockCount > 0 ? ('down' as const) : ('neutral' as const),
       icon: AlertTriangle,
       color: 'from-amber-500 to-orange-500',
@@ -75,28 +82,28 @@ export function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-pika-600 via-pika-700 to-pika-900 p-6 md:p-8 text-white shadow-2xl shadow-pika-700/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-700 via-purple-800 to-slate-900 p-6 md:p-8 text-white shadow-2xl shadow-purple-950/40 border border-purple-500/20">
         <div className="relative z-10 max-w-xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-semibold mb-3">
-            <span>🐹 Pika Local-First POS & Inventory</span>
+            <span>🐹 {storeName || 'Pika SME Enterprise'}</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
             Live Business Intelligence
           </h1>
-          <p className="mt-2 text-pika-100 text-sm leading-relaxed">
-            Real-time stock valuation, FIFO lot management, and rapid POS checkout designed for SMEs.
+          <p className="mt-2 text-purple-200 text-sm leading-relaxed">
+            Real-time stock valuation, strict FIFO costing, dynamic POS checkout, and zero-data-loss sovereignty.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               to="/inventory"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-pika-700 font-semibold text-sm hover:bg-pika-50 transition-colors shadow-lg"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-purple-900 font-bold text-sm hover:bg-purple-50 transition-colors shadow-lg shadow-black/20"
             >
-              <Package className="w-4 h-4" />
+              <Package className="w-4 h-4 text-purple-700" />
               Manage Inventory
             </Link>
             <Link
               to="/pos"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 text-white font-semibold text-sm hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600/40 text-white font-semibold text-sm hover:bg-purple-600/60 transition-colors backdrop-blur-sm border border-white/20"
             >
               <ShoppingCart className="w-4 h-4" />
               Launch POS Checkout
@@ -104,9 +111,9 @@ export function DashboardPage() {
           </div>
         </div>
         {/* Decorative elements */}
-        <div className="absolute -right-8 -top-8 w-44 h-44 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute -right-4 top-12 w-28 h-28 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute right-24 -bottom-6 w-36 h-36 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-purple-500/10 pointer-events-none blur-xl" />
+        <div className="absolute -right-4 top-12 w-28 h-28 rounded-full bg-indigo-500/10 pointer-events-none" />
+        <div className="absolute right-24 -bottom-6 w-36 h-36 rounded-full bg-purple-500/10 pointer-events-none" />
       </div>
 
       {/* Metrics grid */}
@@ -116,7 +123,7 @@ export function DashboardPage() {
           return (
             <div
               key={metric.label}
-              className="group relative overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-5 shadow-sm hover:shadow-lg hover:shadow-pika-500/5 transition-all duration-300 hover:-translate-y-0.5"
+              className="group relative overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-5 shadow-sm hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300 hover:-translate-y-0.5"
             >
               <div className="flex items-start justify-between">
                 <div className={`p-2.5 rounded-xl ${metric.bgLight} ${metric.bgDark}`}>
@@ -135,7 +142,7 @@ export function DashboardPage() {
                 </span>
               </div>
               <div className="mt-3">
-                <p className="text-2xl font-bold text-surface-900 dark:text-white">
+                <p className="text-2xl font-bold text-surface-900 dark:text-white font-mono">
                   {metric.value}
                 </p>
                 <p className="text-sm text-surface-500 dark:text-surface-400 mt-0.5">
@@ -156,14 +163,14 @@ export function DashboardPage() {
         <div className="rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-surface-900 dark:text-white flex items-center gap-2">
-              <Package className="w-5 h-5 text-pika-500" />
-              Stock Overview
+              <Package className="w-5 h-5 text-purple-500" />
+              Highest Quantity Items
             </h3>
             <Link
               to="/inventory"
-              className="text-xs font-semibold text-pika-600 dark:text-pika-400 hover:underline flex items-center gap-1"
+              className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
             >
-              View All <ArrowRight className="w-3.5 h-3.5" />
+              View Catalog <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -180,11 +187,11 @@ export function DashboardPage() {
                     </span>
                   </div>
                   <div className="text-right flex-shrink-0 ml-3">
-                    <span className="text-sm font-bold text-surface-900 dark:text-white">
+                    <span className="text-sm font-bold text-surface-900 dark:text-white font-mono">
                       {p.totalStock} {p.unit}s
                     </span>
-                    <span className="text-xs text-surface-400 block">
-                      ₦{p.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                    <span className="text-xs text-surface-400 block font-mono">
+                      {formatCurrency(p.totalValue)}
                     </span>
                   </div>
                 </div>
@@ -198,51 +205,100 @@ export function DashboardPage() {
           )}
         </div>
 
-        {/* Expiring Lots & Inventory Health */}
-        <div className="rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-surface-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-rose-500" />
-              Near-Expiry Lots (14 Days)
-            </h3>
-            <span className="text-xs text-surface-400 font-medium">Automated FIFO check</span>
-          </div>
+        {/* Dynamic Expiry Lots OR High Value Valuation */}
+        {showExpiry ? (
+          <div className="rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-surface-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-rose-500" />
+                Near-Expiry Lots (14 Days)
+              </h3>
+              <span className="text-xs text-surface-400 font-medium">Automated FIFO check</span>
+            </div>
 
-          {expiringBatches && expiringBatches.length > 0 ? (
-            <div className="divide-y divide-surface-100 dark:divide-surface-800">
-              {expiringBatches.map((w) => (
-                <div key={w.batchId} className="py-3 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-rose-600 dark:text-rose-400">
-                        {w.batchNumber}
-                      </span>
-                      <span className="text-sm font-medium text-surface-900 dark:text-white">
-                        {w.productName}
+            {expiringBatches && expiringBatches.length > 0 ? (
+              <div className="divide-y divide-surface-100 dark:divide-surface-800">
+                {expiringBatches.map((w) => (
+                  <div key={w.batchId} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-rose-600 dark:text-rose-400">
+                          {w.batchNumber}
+                        </span>
+                        <span className="text-sm font-medium text-surface-900 dark:text-white">
+                          {w.productName}
+                        </span>
+                      </div>
+                      <span className="text-xs text-surface-400 block mt-0.5">
+                        Expires in {w.daysUntilExpiry} day{w.daysUntilExpiry === 1 ? '' : 's'} ({new Date(w.expiryDate).toLocaleDateString()})
                       </span>
                     </div>
-                    <span className="text-xs text-surface-400 block mt-0.5">
-                      Expires in {w.daysUntilExpiry} day{w.daysUntilExpiry === 1 ? '' : 's'} ({new Date(w.expiryDate).toLocaleDateString()})
-                    </span>
+                    <div className="text-right">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 font-mono">
+                        {w.remainingQty} units left
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400">
-                      {w.remainingQty} units left
-                    </span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-surface-400 text-center">
+                <Clock className="w-10 h-10 mb-2 opacity-30 text-emerald-500" />
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  All active stock lots are fresh
+                </p>
+                <p className="text-xs text-surface-400 mt-1">
+                  Zero expired or near-expiry batches detected across all active lots.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* When business mode is without expiry, display top valuable capital assets */
+          <div className="rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-surface-900 dark:text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-500" />
+                Top Capital Assets (By Inventory Value)
+              </h3>
+              <span className="text-xs text-surface-400 font-medium">Non-Perishable Assets</span>
+            </div>
+
+            {highestValueProducts.length > 0 ? (
+              <div className="divide-y divide-surface-100 dark:divide-surface-800">
+                {highestValueProducts.map((p) => (
+                  <div key={p.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-purple-600 dark:text-purple-400">
+                          {p.sku}
+                        </span>
+                        <span className="text-sm font-medium text-surface-900 dark:text-white">
+                          {p.name}
+                        </span>
+                      </div>
+                      <span className="text-xs text-surface-400 block mt-0.5">
+                        {p.totalStock} {p.unit}s in stock @ ~{formatCurrency(p.suggestedSellingPrice || 0)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                        {formatCurrency(p.totalValue)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-surface-400 text-center">
-              <Clock className="w-10 h-10 mb-2 opacity-30 text-emerald-500" />
-              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                All stock lots are fresh
-              </p>
-              <p className="text-xs text-surface-400 mt-1">No batches expiring in the next 14 days</p>
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-surface-400 text-center">
+                <ShieldCheck className="w-10 h-10 mb-2 opacity-30 text-purple-500" />
+                <p className="text-sm font-medium text-purple-400">
+                  Inventory Healthy & Balanced
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

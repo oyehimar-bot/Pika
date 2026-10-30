@@ -70,6 +70,10 @@ export interface SaleItem {
   quantity: number
   unitCostPrice: number
   unitSellingPrice: number
+  listedPrice?: number
+  actualSoldPrice?: number
+  priceVariance?: number
+  varianceNote?: string
   lineTotal: number
   lineProfit: number
 }
@@ -127,6 +131,7 @@ export interface ProductWithStock extends Product {
   totalValue: number
   avgCostPrice: number
   avgSellingPrice: number
+  suggestedSellingPrice?: number
   activeBatchCount: number
   earliestExpiry: Date | null
   isLowStock: boolean
@@ -146,6 +151,13 @@ export interface SaleWithItems extends Sale {
   totalCost: number
 }
 
+export type BusinessMode = 'no_expiry' | 'expiry_only' | 'hybrid'
+
+export interface AppSetting {
+  key: string
+  value: unknown
+}
+
 /** Cart item used during POS checkout (before committing to DB) */
 export interface CartItem {
   productId: number
@@ -153,6 +165,8 @@ export interface CartItem {
   sku: string
   quantity: number
   unitPrice: number
+  customPrice?: number
+  varianceNote?: string
   maxAvailable: number
   batches: BatchAllocation[]
 }
