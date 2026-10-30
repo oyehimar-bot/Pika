@@ -55,3 +55,15 @@ export {
 } from './salesService'
 export type { ProcessSaleInput, ProcessSaleResult } from './salesService'
 
+// Product service
+export {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  generateSuggestedSKU,
+  generateBarcode,
+  seedSampleInventory,
+} from './productService'
+export type { CreateProductInput, UpdateProductInput } from './productService'
+
+
