@@ -12,6 +12,8 @@ import {
 import type { ProductWithStock, Batch } from '@/db'
 import { useProductBatches } from '@/hooks/useDatabase'
 import { StockAdjustModal } from './StockAdjustModal'
+import { formatCurrency } from '@/utils/currency'
+import { useAppSettings } from '@/context/AppSettingsContext'
 
 interface BatchListModalProps {
   isOpen: boolean
@@ -26,6 +28,7 @@ export function BatchListModal({
   product,
   onOpenReceiveBatch,
 }: BatchListModalProps) {
+  const { showExpiry } = useAppSettings()
   const [adjustingBatch, setAdjustingBatch] = useState<Batch | null>(null)
   const batches = useProductBatches(product?.id)
 
@@ -77,16 +80,16 @@ export function BatchListModal({
             <span className="text-surface-500 dark:text-surface-400 block font-medium">
               Inventory Cost Value
             </span>
-            <span className="text-base font-bold text-pika-600 dark:text-pika-400">
-              ₦{product.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            <span className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">
+              {formatCurrency(product.totalValue)}
             </span>
           </div>
           <div>
             <span className="text-surface-500 dark:text-surface-400 block font-medium">
               Avg. Cost / Unit
             </span>
-            <span className="text-base font-bold text-surface-900 dark:text-white">
-              ₦{product.avgCostPrice.toFixed(2)}
+            <span className="text-base font-bold text-surface-900 dark:text-white font-mono">
+              {formatCurrency(product.avgCostPrice)}
             </span>
           </div>
           <div>
@@ -132,7 +135,7 @@ export function BatchListModal({
                     : 0
 
                 let expiryStatus = null
-                if (batch.expiryDate) {
+                if (showExpiry && batch.expiryDate) {
                   const daysToExpiry = Math.ceil(
                     (new Date(batch.expiryDate).getTime() - now.getTime()) /
                       (24 * 60 * 60 * 1000)
@@ -219,14 +222,14 @@ export function BatchListModal({
                       </div>
                       <div>
                         <span className="text-surface-400 block text-[11px]">Cost Price</span>
-                        <span className="font-semibold text-surface-900 dark:text-white">
-                          ₦{batch.costPrice.toFixed(2)}
+                        <span className="font-semibold text-surface-900 dark:text-white font-mono">
+                          {formatCurrency(batch.costPrice)}
                         </span>
                       </div>
                       <div>
                         <span className="text-surface-400 block text-[11px]">Selling Price</span>
-                        <span className="font-semibold text-surface-900 dark:text-white">
-                          ₦{batch.sellingPrice.toFixed(2)}
+                        <span className="font-semibold text-surface-900 dark:text-white font-mono">
+                          {formatCurrency(batch.sellingPrice)}
                         </span>
                       </div>
                       <div>

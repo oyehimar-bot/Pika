@@ -10,6 +10,7 @@ export interface BackupPayload {
     saleItems: unknown[]
     auditLogs: unknown[]
     staff: unknown[]
+    appSettings?: unknown[]
   }
 }
 
@@ -17,7 +18,7 @@ export interface BackupPayload {
  * Dump complete local IndexedDB database into a downloadable JSON file.
  */
 export async function exportDatabaseToJSON(): Promise<void> {
-  const [products, batches, sales, saleItems, auditLogs, staff] =
+  const [products, batches, sales, saleItems, auditLogs, staff, appSettings] =
     await Promise.all([
       db.products.toArray(),
       db.batches.toArray(),
@@ -25,6 +26,7 @@ export async function exportDatabaseToJSON(): Promise<void> {
       db.saleItems.toArray(),
       db.auditLogs.toArray(),
       db.staff.toArray(),
+      db.appSettings.toArray(),
     ])
 
   const payload: BackupPayload = {
@@ -37,6 +39,7 @@ export async function exportDatabaseToJSON(): Promise<void> {
       saleItems,
       auditLogs,
       staff,
+      appSettings,
     },
   }
 
@@ -186,18 +189,22 @@ export async function exportTableToCSV(
 }
 
 /**
- * Restore database from an uploaded JSON backup file.
+ * Restore database from an uploaded JSON backup file or string.
  */
-export async function importDatabaseFromJSON(jsonString: string): Promise<void> {
+export async function importDatabaseFromJSON(fileOrJson: File | string): Promise<number> {
+  const jsonString =
+    typeof fileOrJson === 'string' ? fileOrJson : await fileOrJson.text()
   const data = JSON.parse(jsonString) as BackupPayload
 
   if (!data.tables || !data.version) {
     throw new Error('Invalid backup file format: missing tables or version header.')
   }
 
+  let totalRestored = 0
+
   await db.transaction(
     'rw',
-    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff],
+    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff, db.appSettings],
     async () => {
       // Clear current data
       await Promise.all([
@@ -207,26 +214,37 @@ export async function importDatabaseFromJSON(jsonString: string): Promise<void> 
         db.saleItems.clear(),
         db.auditLogs.clear(),
         db.staff.clear(),
+        db.appSettings.clear(),
       ])
 
       // Restore tables
       if (Array.isArray(data.tables.products) && data.tables.products.length > 0) {
         await db.products.bulkAdd(data.tables.products as any)
+        totalRestored += data.tables.products.length
       }
       if (Array.isArray(data.tables.batches) && data.tables.batches.length > 0) {
         await db.batches.bulkAdd(data.tables.batches as any)
+        totalRestored += data.tables.batches.length
       }
       if (Array.isArray(data.tables.sales) && data.tables.sales.length > 0) {
         await db.sales.bulkAdd(data.tables.sales as any)
+        totalRestored += data.tables.sales.length
       }
       if (Array.isArray(data.tables.saleItems) && data.tables.saleItems.length > 0) {
         await db.saleItems.bulkAdd(data.tables.saleItems as any)
+        totalRestored += data.tables.saleItems.length
       }
       if (Array.isArray(data.tables.staff) && data.tables.staff.length > 0) {
         await db.staff.bulkAdd(data.tables.staff as any)
+        totalRestored += data.tables.staff.length
       }
       if (Array.isArray(data.tables.auditLogs) && data.tables.auditLogs.length > 0) {
         await db.auditLogs.bulkAdd(data.tables.auditLogs as any)
+        totalRestored += data.tables.auditLogs.length
+      }
+      if (Array.isArray(data.tables.appSettings) && data.tables.appSettings.length > 0) {
+        await db.appSettings.bulkAdd(data.tables.appSettings as any)
+        totalRestored += data.tables.appSettings.length
       }
 
       await db.auditLogs.add({
@@ -239,6 +257,8 @@ export async function importDatabaseFromJSON(jsonString: string): Promise<void> 
       })
     }
   )
+
+  return totalRestored
 }
 
 function escapeCSV(val: string): string {
