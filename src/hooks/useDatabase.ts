@@ -11,6 +11,7 @@ import type {
   InventoryValuation,
   ExpiryWarning,
   AuditLog,
+  BusinessMode,
 } from '@/db'
 
 /**
@@ -21,13 +22,13 @@ import type {
  */
 
 /** Live query: all products with aggregated stock info */
-export function useProducts(): ProductWithStock[] | undefined {
-  return useLiveQuery(() => getAllProductsWithStock())
+export function useProducts(modeOverride?: BusinessMode): ProductWithStock[] | undefined {
+  return useLiveQuery(() => getAllProductsWithStock(14, modeOverride), [modeOverride])
 }
 
 /** Live query: inventory valuation summary */
-export function useInventoryValuation(): InventoryValuation | undefined {
-  return useLiveQuery(() => getInventoryValuation())
+export function useInventoryValuation(modeOverride?: BusinessMode): InventoryValuation | undefined {
+  return useLiveQuery(() => getInventoryValuation(modeOverride), [modeOverride])
 }
 
 /** Live query: batches expiring soon */

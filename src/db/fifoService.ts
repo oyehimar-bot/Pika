@@ -6,6 +6,7 @@ import type {
   StockAdjustmentResult,
   ExpiryWarning,
   ProductWithStock,
+  BusinessMode,
 } from './models'
 
 /**
@@ -393,14 +394,27 @@ export async function getProductWithStock(
 }
 
 /**
- * Get all products with their aggregated stock information.
+ * Get all products with their aggregated stock information, strictly filtered
+ * according to the active business operational mode.
  *
  * @param expiryWarningDays - Days threshold for "expiring soon" flag
+ * @param modeOverride - Optional explicit business mode override
  * @returns Array of ProductWithStock
  */
 export async function getAllProductsWithStock(
-  expiryWarningDays: number = 14
+  expiryWarningDays: number = 14,
+  modeOverride?: BusinessMode
 ): Promise<ProductWithStock[]> {
+  let mode = modeOverride
+  if (!mode) {
+    const setting = await db.appSettings.get('business_mode')
+    if (setting && typeof setting.value === 'string') {
+      mode = setting.value as BusinessMode
+    } else {
+      mode = 'hybrid'
+    }
+  }
+
   const products = await db.products
     .filter((p) => p.isActive)
     .toArray()
@@ -409,8 +423,27 @@ export async function getAllProductsWithStock(
     .filter((b) => b.isActive && b.remainingQty > 0)
     .toArray()
 
+  // Track products that have any batches with expiry dates
+  const allBatchesRaw = await db.batches.toArray()
+  const productIdsWithExpiry = new Set(
+    allBatchesRaw.filter((b) => b.expiryDate !== null).map((b) => b.productId)
+  )
+
+  let filteredProducts = products
+  let filteredBatches = allBatches
+
+  if (mode === 'no_expiry') {
+    // Strictly filter out and hide legacy products or batches that have expiry dates
+    filteredProducts = products.filter((p) => !productIdsWithExpiry.has(p.id!))
+    filteredBatches = allBatches.filter((b) => b.expiryDate === null)
+  } else if (mode === 'expiry_only') {
+    // Strictly filter for products that have expiry dates
+    filteredProducts = products.filter((p) => productIdsWithExpiry.has(p.id!))
+    filteredBatches = allBatches.filter((b) => b.expiryDate !== null)
+  }
+
   const batchesByProduct = new Map<number, Batch[]>()
-  for (const batch of allBatches) {
+  for (const batch of filteredBatches) {
     const list = batchesByProduct.get(batch.productId) || []
     list.push(batch)
     batchesByProduct.set(batch.productId, list)
@@ -418,7 +451,7 @@ export async function getAllProductsWithStock(
 
   const results: ProductWithStock[] = []
 
-  for (const product of products) {
+  for (const product of filteredProducts) {
     const activeBatches = batchesByProduct.get(product.id!) || []
     results.push(
       computeProductStock(product, activeBatches, expiryWarningDays)
@@ -503,13 +536,17 @@ export interface InventoryValuation {
 }
 
 /**
- * Calculate full inventory valuation across all products and batches.
+ * Calculate full inventory valuation across all products and batches,
+ * strictly filtered by the active business operational mode.
  */
-export async function getInventoryValuation(): Promise<InventoryValuation> {
-  const products = await getAllProductsWithStock()
+export async function getInventoryValuation(
+  modeOverride?: BusinessMode
+): Promise<InventoryValuation> {
+  const products = await getAllProductsWithStock(14, modeOverride)
+  const allowedProductIds = new Set(products.map((p) => p.id))
 
   const activeBatches = await db.batches
-    .filter((b) => b.isActive && b.remainingQty > 0)
+    .filter((b) => b.isActive && b.remainingQty > 0 && allowedProductIds.has(b.productId))
     .toArray()
 
   const now = new Date()
@@ -518,6 +555,7 @@ export async function getInventoryValuation(): Promise<InventoryValuation> {
       (b) =>
         !b.isActive &&
         b.expiryDate !== null &&
+        allowedProductIds.has(b.productId) &&
         new Date(b.expiryDate).getTime() < now.getTime()
     )
     .count()

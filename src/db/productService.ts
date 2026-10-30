@@ -299,4 +299,94 @@ export async function seedSampleInventory(): Promise<void> {
     receivedDate: new Date(now.getTime() - 10 * dayMs),
     supplier: 'Mediterranean Imports',
   })
+
+  // ─── Non-Perishable Durable Goods (Without Expiry Date) ───────────────────
+
+  // 6. Logitech MX Master 3S Wireless Mouse (Electronics)
+  const mouseId = await createProduct({
+    name: 'Logitech MX Master 3S Wireless Mouse',
+    sku: 'ELE-LOG-01',
+    category: 'Electronics',
+    unit: 'pcs',
+    reorderLevel: 5,
+    barcode: '109283746501',
+  })
+
+  await addBatch({
+    productId: mouseId,
+    batchNumber: 'LOT-LOG-101',
+    costPrice: 45000,
+    sellingPrice: 65000,
+    initialQty: 15,
+    remainingQty: 15,
+    expiryDate: null,
+    receivedDate: new Date(now.getTime() - 12 * dayMs),
+    supplier: 'Apex Tech Wholesalers',
+  })
+
+  // 7. Heavy Duty Mechanic Toolkit 120-Piece (Hardware)
+  const toolkitId = await createProduct({
+    name: 'Heavy Duty Mechanic Toolkit 120-Piece',
+    sku: 'HRD-TOOL-02',
+    category: 'Hardware',
+    unit: 'set',
+    reorderLevel: 3,
+    barcode: '108273645192',
+  })
+
+  await addBatch({
+    productId: toolkitId,
+    batchNumber: 'LOT-HRD-201',
+    costPrice: 32000,
+    sellingPrice: 48000,
+    initialQty: 8,
+    remainingQty: 8,
+    expiryDate: null,
+    receivedDate: new Date(now.getTime() - 15 * dayMs),
+    supplier: 'Industrial Spares Ltd',
+  })
+
+  // 8. Premium Cotton Unisex Oversized Hoodie (Boutique)
+  const hoodieId = await createProduct({
+    name: 'Premium Cotton Unisex Oversized Hoodie',
+    sku: 'APP-HOD-03',
+    category: 'Boutique',
+    unit: 'pcs',
+    reorderLevel: 10,
+    barcode: '107382910482',
+  })
+
+  await addBatch({
+    productId: hoodieId,
+    batchNumber: 'LOT-APP-301',
+    costPrice: 8500,
+    sellingPrice: 15000,
+    initialQty: 25,
+    remainingQty: 25,
+    expiryDate: null,
+    receivedDate: new Date(now.getTime() - 7 * dayMs),
+    supplier: 'Urban Stitch Apparel',
+  })
+
+  // 9. Stainless Steel Thermal Vacuum Flask 1.5L (Household)
+  const flaskId = await createProduct({
+    name: 'Stainless Steel Thermal Vacuum Flask 1.5L',
+    sku: 'HSE-FLK-04',
+    category: 'Household',
+    unit: 'pcs',
+    reorderLevel: 4,
+    barcode: '106294710381',
+  })
+
+  await addBatch({
+    productId: flaskId,
+    batchNumber: 'LOT-FLK-401',
+    costPrice: 7000,
+    sellingPrice: 12500,
+    initialQty: 20,
+    remainingQty: 20,
+    expiryDate: null,
+    receivedDate: new Date(now.getTime() - 5 * dayMs),
+    supplier: 'KitchenCraft Imports',
+  })
 }
