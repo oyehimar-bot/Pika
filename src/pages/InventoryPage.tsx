@@ -38,7 +38,60 @@ export function InventoryPage() {
   const products = useProducts()
   const valuation = useInventoryValuation()
   const expiringBatches = useExpiringBatches(14)
-  const { showExpiry } = useAppSettings()
+  const { showExpiry, businessMode, isNoExpiry } = useAppSettings()
+
+  // Mode Theme Accents
+  const modeTheme = useMemo(() => {
+    if (isNoExpiry) {
+      return {
+        titleIcon: 'text-sky-500',
+        subtitle: 'Real-time catalog, durable goods stock control, and instant margin monitoring',
+        invoiceBtn: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20',
+        receiveBtn: 'border-sky-200 dark:border-sky-800/80 bg-sky-50/80 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100',
+        addBtn: 'bg-sky-600 hover:bg-sky-500 shadow-sky-600/25',
+        focusRing: 'focus:ring-sky-500/50 focus:border-sky-500',
+        categoryActive: 'bg-sky-600 text-white shadow-sm',
+        viewActive: 'bg-sky-600 text-white shadow-sm',
+        avatarBg: 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300',
+        skuText: 'text-sky-600 dark:text-sky-400',
+        valueText: 'text-sky-600 dark:text-sky-400',
+        gridAvatar: 'from-sky-600 to-blue-700',
+        batchBadge: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300',
+      }
+    } else if (businessMode === 'expiry_only') {
+      return {
+        titleIcon: 'text-emerald-500',
+        subtitle: 'Real-time catalog, strict FIFO lot costing, and automated expiration monitoring',
+        invoiceBtn: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20',
+        receiveBtn: 'border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100',
+        addBtn: 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/25',
+        focusRing: 'focus:ring-emerald-500/50 focus:border-emerald-500',
+        categoryActive: 'bg-emerald-600 text-white shadow-sm',
+        viewActive: 'bg-emerald-600 text-white shadow-sm',
+        avatarBg: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300',
+        skuText: 'text-emerald-600 dark:text-emerald-400',
+        valueText: 'text-emerald-600 dark:text-emerald-400',
+        gridAvatar: 'from-emerald-600 to-teal-700',
+        batchBadge: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300',
+      }
+    } else {
+      return {
+        titleIcon: 'text-purple-500',
+        subtitle: 'Real-time catalog, strict FIFO lot costing, and automated expiration monitoring',
+        invoiceBtn: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20',
+        receiveBtn: 'border-purple-200 dark:border-purple-800/80 bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100',
+        addBtn: 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/25',
+        focusRing: 'focus:ring-purple-500/50 focus:border-purple-500',
+        categoryActive: 'bg-purple-600 text-white shadow-sm',
+        viewActive: 'bg-purple-600 text-white shadow-sm',
+        avatarBg: 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300',
+        skuText: 'text-purple-600 dark:text-purple-400',
+        valueText: 'text-purple-600 dark:text-purple-400',
+        gridAvatar: 'from-purple-600 to-indigo-600',
+        batchBadge: 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300',
+      }
+    }
+  }, [businessMode, isNoExpiry])
 
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('')
@@ -154,11 +207,11 @@ export function InventoryPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-            <Package className="w-7 h-7 text-purple-500" />
+            <Package className={`w-7 h-7 ${modeTheme.titleIcon}`} />
             Inventory & Batch Management
           </h1>
           <p className="text-sm text-surface-500 dark:text-surface-400 mt-1">
-            Real-time catalog, strict FIFO lot costing, and automated expiration monitoring
+            {modeTheme.subtitle}
           </p>
         </div>
 
@@ -176,24 +229,24 @@ export function InventoryPage() {
           {/* Smart PDF Invoice Parser Button */}
           <button
             onClick={() => setIsInvoiceModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 text-xs font-bold hover:bg-purple-500/20 transition-all shadow-sm"
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border ${modeTheme.invoiceBtn} text-xs font-bold transition-all shadow-sm`}
           >
-            <FileText className="w-4 h-4 text-purple-500" />
+            <FileText className="w-4 h-4" />
             <span>Import PDF Invoice</span>
           </button>
 
           <button
             onClick={() => handleOpenReceiveBatch()}
             disabled={!products || products.length === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800/80 bg-purple-50/80 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border ${modeTheme.receiveBtn} text-xs font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <Layers className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <Layers className="w-4 h-4" />
             Receive Batch
           </button>
 
           <button
             onClick={handleOpenAddProduct}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 text-white font-semibold text-xs hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/25"
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${modeTheme.addBtn} text-white font-semibold text-xs transition-all`}
           >
             <Plus className="w-4 h-4" />
             Add Product
@@ -303,8 +356,8 @@ export function InventoryPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by product name, SKU, category, or barcode..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+              placeholder={isNoExpiry ? 'Search by product name, SKU, or category...' : 'Search by product name, SKU, category, or barcode...'}
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 ${modeTheme.focusRing} transition-all`}
             />
           </div>
 
@@ -325,7 +378,7 @@ export function InventoryPage() {
               </select>
               <button
                 onClick={() => setSortAsc(!sortAsc)}
-                className="text-[11px] font-bold text-purple-600 dark:text-purple-400 ml-1 hover:underline"
+                className={`text-[11px] font-bold ${modeTheme.skuText} ml-1 hover:underline`}
               >
                 {sortAsc ? 'ASC' : 'DESC'}
               </button>
@@ -337,7 +390,7 @@ export function InventoryPage() {
                 onClick={() => setViewMode('table')}
                 className={`p-2 rounded-lg text-xs font-medium transition-colors ${
                   viewMode === 'table'
-                    ? 'bg-purple-600 text-white shadow-sm'
+                    ? modeTheme.viewActive
                     : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
                 }`}
                 title="Table view"
@@ -348,7 +401,7 @@ export function InventoryPage() {
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg text-xs font-medium transition-colors ${
                   viewMode === 'grid'
-                    ? 'bg-purple-600 text-white shadow-sm'
+                    ? modeTheme.viewActive
                     : 'text-surface-500 hover:text-surface-800 dark:hover:text-surface-200'
                 }`}
                 title="Grid view"
@@ -369,7 +422,7 @@ export function InventoryPage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                   selectedCategory === cat
-                    ? 'bg-purple-600 text-white shadow-sm'
+                    ? modeTheme.categoryActive
                     : 'bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
                 }`}
               >
@@ -459,7 +512,7 @@ export function InventoryPage() {
                         {/* Product & SKU */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            <div className={`w-9 h-9 rounded-xl ${modeTheme.avatarBg} flex items-center justify-center font-bold text-xs flex-shrink-0`}>
                               {product.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div className="min-w-0">
@@ -467,10 +520,10 @@ export function InventoryPage() {
                                 {product.name}
                               </p>
                               <div className="flex items-center gap-2 mt-0.5 text-xs text-surface-400">
-                                <span className="font-mono font-medium text-purple-600 dark:text-purple-400">
+                                <span className={`font-mono font-medium ${modeTheme.skuText}`}>
                                   {product.sku}
                                 </span>
-                                {product.barcode && (
+                                {!isNoExpiry && product.barcode && (
                                   <span className="flex items-center gap-0.5">
                                     <BarcodeIcon className="w-3 h-3" />
                                     {product.barcode}
@@ -495,7 +548,7 @@ export function InventoryPage() {
                               e.stopPropagation()
                               setInspectingProduct(product)
                             }}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 hover:underline cursor-pointer"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${modeTheme.batchBadge} hover:underline cursor-pointer`}
                           >
                             <Layers className="w-3 h-3" />
                             {product.activeBatchCount} lot{product.activeBatchCount === 1 ? '' : 's'}
@@ -535,7 +588,7 @@ export function InventoryPage() {
 
                         {/* Total FIFO Valuation */}
                         <td className="py-4 px-4 font-mono">
-                          <span className="font-bold text-purple-600 dark:text-purple-400">
+                          <span className={`font-bold ${modeTheme.valueText}`}>
                             {formatCurrency(product.totalValue)}
                           </span>
                           {showExpiry && product.isExpiringSoon && (
@@ -602,14 +655,14 @@ export function InventoryPage() {
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${modeTheme.gridAvatar} text-white flex items-center justify-center font-bold text-sm shadow-md`}>
                         {product.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-bold text-surface-900 dark:text-white text-base group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-1">
+                        <h3 className="font-bold text-surface-900 dark:text-white text-base transition-colors line-clamp-1">
                           {product.name}
                         </h3>
-                        <span className="font-mono text-xs text-purple-600 dark:text-purple-400 font-semibold">
+                        <span className={`font-mono text-xs ${modeTheme.skuText} font-semibold`}>
                           {product.sku}
                         </span>
                       </div>
@@ -644,7 +697,7 @@ export function InventoryPage() {
 
                     <div>
                       <span className="text-surface-400 block text-[11px]">FIFO Valuation</span>
-                      <span className="text-lg font-bold text-purple-600 dark:text-purple-400 font-mono">
+                      <span className={`text-lg font-bold ${modeTheme.valueText} font-mono`}>
                         {formatCurrency(product.totalValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </span>
                     </div>

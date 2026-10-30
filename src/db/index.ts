@@ -27,6 +27,8 @@ export type {
   FIFODeductionResult,
   StockAdjustmentResult,
   ExpiryWarning,
+  BusinessMode,
+  AppSetting,
 } from './models'
 
 // FIFO inventory engine

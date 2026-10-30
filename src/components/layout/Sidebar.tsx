@@ -9,6 +9,7 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react'
+import { useAppSettings } from '@/context/AppSettingsContext'
 
 interface SidebarProps {
   collapsed: boolean
@@ -27,6 +28,7 @@ const navItems = [
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation()
+  const { businessMode } = useAppSettings()
 
   const sidebarClasses = [
     'fixed lg:relative inset-y-0 left-0 z-50 flex flex-col',
@@ -50,10 +52,23 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
             <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-br from-pika-500 to-pika-700 opacity-20 blur-sm -z-10" />
           </div>
           {!collapsed && (
-            <div className="animate-fade-in">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-pika-500 to-pika-700 bg-clip-text text-transparent">
-                Pika
-              </h1>
+            <div className="animate-fade-in min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-pika-500 to-pika-700 bg-clip-text text-transparent">
+                  Pika
+                </h1>
+                <span
+                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider ${
+                    businessMode === 'no_expiry'
+                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-300/40'
+                      : businessMode === 'expiry_only'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40'
+                      : 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300/40'
+                  }`}
+                >
+                  {businessMode === 'no_expiry' ? 'Durable' : businessMode === 'expiry_only' ? 'Perishable' : 'Hybrid'}
+                </span>
+              </div>
               <p className="text-[10px] font-medium text-surface-500 dark:text-surface-400 tracking-wider uppercase">
                 Inventory
               </p>

@@ -18,17 +18,20 @@ import {
   Tag,
   Edit2,
   Check,
+  Search,
 } from 'lucide-react'
 import type { ProductWithStock, CartItem, PaymentMethod, SaleWithItems } from '@/db'
 import { useProducts } from '@/hooks/useDatabase'
 import { processSale, getSaleWithItems } from '@/db'
 import { useAuth } from '@/context/AuthContext'
+import { useAppSettings } from '@/context/AppSettingsContext'
 import { ReceiptModal } from '@/components/pos/ReceiptModal'
 import { formatCurrency } from '@/utils/currency'
 
 export function POSPage() {
   const products = useProducts()
   const { currentStaff } = useAuth()
+  const { businessMode, isNoExpiry, showExpiry } = useAppSettings()
 
   // State
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -61,6 +64,50 @@ export function POSPage() {
 
   const barcodeInputRef = useRef<HTMLInputElement>(null)
 
+  // Mode-specific color themes and UI accents
+  const modeColors = useMemo(() => {
+    if (isNoExpiry) {
+      return {
+        badge: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800/60',
+        badgeText: 'Non-Expiry Mode',
+        tabActive: 'bg-sky-600 text-white shadow-md shadow-sky-600/30',
+        cardBorder: 'hover:border-sky-400 dark:hover:border-sky-500 hover:shadow-lg',
+        cartQtyBadge: 'bg-sky-600 text-white',
+        priceText: 'text-sky-600 dark:text-sky-400',
+        ring: 'focus:ring-sky-500',
+        checkoutBtn: 'from-sky-700 via-blue-600 to-slate-900 hover:from-sky-800 hover:to-blue-700 shadow-sky-700/25',
+        accentText: 'text-sky-600 dark:text-sky-400',
+        tagBg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+      }
+    } else if (businessMode === 'expiry_only') {
+      return {
+        badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
+        badgeText: 'Strict Expiry Mode',
+        tabActive: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30',
+        cardBorder: 'hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-lg',
+        cartQtyBadge: 'bg-emerald-600 text-white',
+        priceText: 'text-emerald-600 dark:text-emerald-400',
+        ring: 'focus:ring-emerald-500',
+        checkoutBtn: 'from-emerald-700 via-teal-600 to-slate-900 hover:from-emerald-800 hover:to-teal-700 shadow-emerald-700/25',
+        accentText: 'text-emerald-600 dark:text-emerald-400',
+        tagBg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      }
+    } else {
+      return {
+        badge: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800/60',
+        badgeText: 'Hybrid Store',
+        tabActive: 'bg-purple-600 text-white shadow-md shadow-purple-600/30',
+        cardBorder: 'hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-lg',
+        cartQtyBadge: 'bg-purple-600 text-white',
+        priceText: 'text-purple-600 dark:text-purple-400',
+        ring: 'focus:ring-purple-500',
+        checkoutBtn: 'from-purple-700 via-purple-600 to-indigo-600 hover:from-purple-800 hover:to-indigo-700 shadow-purple-700/25',
+        accentText: 'text-purple-600 dark:text-purple-400',
+        tagBg: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      }
+    }
+  }, [businessMode, isNoExpiry])
+
   // Listen to network status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -89,27 +136,36 @@ export function POSPage() {
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
+        const matchBarcode = !isNoExpiry && p.barcode ? p.barcode.toLowerCase().includes(q) : false
         const match =
           p.name.toLowerCase().includes(q) ||
           p.sku.toLowerCase().includes(q) ||
-          p.barcode.toLowerCase().includes(q)
+          matchBarcode
         if (!match) return false
       }
       return true
     })
-  }, [products, selectedCategory, searchQuery])
+  }, [products, selectedCategory, searchQuery, isNoExpiry])
 
-  // Barcode enter key or exact scanner match
+  // Barcode enter key or exact search match
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const q = searchQuery.trim().toLowerCase()
       if (!q || !products) return
 
-      // Look for exact barcode match first, then SKU
-      const match =
-        products.find((p) => p.barcode.toLowerCase() === q) ||
-        products.find((p) => p.sku.toLowerCase() === q) ||
-        products.find((p) => p.name.toLowerCase().includes(q))
+      let match: ProductWithStock | undefined
+      if (isNoExpiry) {
+        // In non-expiry mode, do NOT search or match by barcode
+        match =
+          products.find((p) => p.sku.toLowerCase() === q) ||
+          products.find((p) => p.name.toLowerCase().includes(q))
+      } else {
+        // Look for exact barcode match first, then SKU, then name
+        match =
+          products.find((p) => p.barcode && p.barcode.toLowerCase() === q) ||
+          products.find((p) => p.sku.toLowerCase() === q) ||
+          products.find((p) => p.name.toLowerCase().includes(q))
+      }
 
       if (match) {
         addToCart(match)
@@ -320,8 +376,16 @@ export function POSPage() {
           </div>
         </div>
 
-        {/* Offline Badge & Barcode search */}
-        <div className="flex items-center gap-3">
+        {/* Offline Badge, Mode Badge & Search/Barcode input */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Mode Badge */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${modeColors.badge}`}
+          >
+            <span>{modeColors.badgeText}</span>
+          </div>
+
+          {/* Online/Offline status */}
           <div
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
               isOnline
@@ -342,16 +406,21 @@ export function POSPage() {
             )}
           </div>
 
+          {/* Conditional Search / Barcode Bar */}
           <div className="relative w-full sm:w-64">
-            <Barcode className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+            {isNoExpiry ? (
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+            ) : (
+              <Barcode className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+            )}
             <input
               ref={barcodeInputRef}
               type="text"
-              placeholder="Scan Barcode or Search SKU..."
+              placeholder={isNoExpiry ? 'Search product name or SKU...' : 'Scan Barcode or Search SKU...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-surface-900 dark:text-white placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className={`w-full pl-9 pr-3 py-1.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-xs text-surface-900 dark:text-white placeholder-surface-400 focus:outline-none focus:ring-2 ${modeColors.ring}`}
             />
           </div>
         </div>
@@ -369,7 +438,7 @@ export function POSPage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
                   selectedCategory === cat
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                    ? modeColors.tabActive
                     : 'bg-white dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-700 border border-surface-200 dark:border-surface-700'
                 }`}
               >
@@ -392,13 +461,13 @@ export function POSPage() {
                   onClick={() => addToCart(product)}
                   className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all duration-150 relative group ${
                     inStock
-                      ? 'bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-lg'
+                      ? `bg-white dark:bg-surface-900 border-surface-200 dark:border-surface-800 ${modeColors.cardBorder}`
                       : 'bg-surface-100/50 dark:bg-surface-900/30 border-surface-200 dark:border-surface-800/50 opacity-50 cursor-not-allowed'
                   }`}
                 >
                   {/* Cart count badge */}
                   {cartQty > 0 && (
-                    <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+                    <span className={`absolute top-2 right-2 w-5 h-5 rounded-full ${modeColors.cartQtyBadge} text-[10px] font-bold flex items-center justify-center shadow-md`}>
                       {cartQty}
                     </span>
                   )}
@@ -416,12 +485,19 @@ export function POSPage() {
                     <h3 className="font-bold text-xs text-surface-900 dark:text-white line-clamp-2">
                       {product.name}
                     </h3>
+
+                    {/* Expiry / Perishable indicator if in expiry or hybrid mode */}
+                    {showExpiry && product.isExpiringSoon && (
+                      <span className="mt-1 inline-block px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                        Expiring Soon
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-3 pt-2 border-t border-surface-100 dark:border-surface-800/60 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] text-surface-400 block">Selling Price</span>
-                      <span className="font-black text-xs text-purple-600 dark:text-purple-400">
+                      <span className={`font-black text-xs ${modeColors.priceText}`}>
                         {formatCurrency(product.suggestedSellingPrice || 0)}
                       </span>
                     </div>
@@ -638,7 +714,9 @@ export function POSPage() {
                   <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
                   <p className="text-xs font-semibold">Cart is currently empty</p>
                   <p className="text-[11px] mt-0.5 max-w-[200px]">
-                    Select items from the catalog or scan barcode to begin a transaction
+                    {isNoExpiry
+                      ? 'Select items from the catalog to begin a transaction'
+                      : 'Select items from the catalog or scan barcode to begin a transaction'}
                   </p>
                 </div>
               )}
@@ -816,7 +894,7 @@ export function POSPage() {
               <button
                 disabled={cart.length === 0 || isProcessing}
                 onClick={handleCheckout}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-purple-700 via-purple-600 to-indigo-600 hover:from-purple-800 hover:to-indigo-700 text-white font-bold text-sm shadow-xl shadow-purple-700/25 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className={`w-full py-3.5 rounded-2xl bg-gradient-to-r ${modeColors.checkoutBtn} text-white font-bold text-sm shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 {isProcessing ? (
                   <span>Deducting FIFO Batches...</span>

@@ -93,6 +93,13 @@ export const OnboardingModal: React.FC = () => {
         <div className="p-6 md:p-8 space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
+            <div className="flex items-center justify-center mb-1">
+              <img
+                src="/pika-logo.png"
+                alt="Pika"
+                className="w-14 h-14 object-contain drop-shadow-lg"
+              />
+            </div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide uppercase mb-1">
               <Sparkles className="w-3.5 h-3.5 text-purple-400" />
               Welcome to Pika

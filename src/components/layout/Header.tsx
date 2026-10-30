@@ -1,7 +1,8 @@
 import { useLocation } from 'react-router-dom'
-import { Menu, Bell, Search, Moon, Sun, Lock } from 'lucide-react'
+import { Menu, Bell, Search, Moon, Sun, Lock, Package, Clock, Layers } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
+import { useAppSettings } from '@/context/AppSettingsContext'
 import { PinAuthModal } from '@/components/auth/PinAuthModal'
 
 interface HeaderProps {
@@ -20,6 +21,7 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme()
   const { currentStaff, setIsPinModalOpen } = useAuth()
+  const { businessMode } = useAppSettings()
   const location = useLocation()
   const page = pageTitles[location.pathname] ?? { title: 'Pika', subtitle: '' }
 
@@ -27,7 +29,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     <>
       <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b border-surface-200 dark:border-surface-800 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl">
         {/* Left section */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Mobile menu button */}
           <button
             onClick={onMenuClick}
@@ -36,11 +38,57 @@ export function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5" />
           </button>
 
+          {/* Mobile logo icon */}
+          <div className="flex items-center lg:hidden">
+            <img
+              src="/pika-logo.png"
+              alt="Pika Logo"
+              className="w-8 h-8 object-contain"
+            />
+          </div>
+
           {/* Page title */}
           <div className="animate-slide-in">
-            <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-50">
-              {page.title}
-            </h2>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-50">
+                {page.title}
+              </h2>
+
+              {/* Mode Visual Indicator Pill */}
+              <span
+                className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                  businessMode === 'no_expiry'
+                    ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border-sky-200 dark:border-sky-800/60'
+                    : businessMode === 'expiry_only'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+                    : 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800/60'
+                }`}
+                title={`Active Business Mode: ${
+                  businessMode === 'no_expiry'
+                    ? 'Products WITHOUT Expiry Date'
+                    : businessMode === 'expiry_only'
+                    ? 'Products WITH Expiry Date'
+                    : 'Hybrid Mode'
+                }`}
+              >
+                {businessMode === 'no_expiry' ? (
+                  <>
+                    <Package className="w-3 h-3 text-sky-500" />
+                    <span>Non-Expiry Mode</span>
+                  </>
+                ) : businessMode === 'expiry_only' ? (
+                  <>
+                    <Clock className="w-3 h-3 text-emerald-500" />
+                    <span>Strict Expiry Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers className="w-3 h-3 text-purple-500" />
+                    <span>Hybrid Mode</span>
+                  </>
+                )}
+              </span>
+            </div>
             <p className="text-xs text-surface-500 dark:text-surface-400 hidden sm:block">
               {page.subtitle}
             </p>

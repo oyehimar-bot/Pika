@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Lock, Delete, AlertCircle } from 'lucide-react'
+import { X, Delete, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import type { Staff } from '@/db'
 
@@ -112,8 +112,12 @@ export function PinAuthModal() {
 
         {/* Modal Icon & Title */}
         <div className="text-center mb-5">
-          <div className="w-12 h-12 rounded-2xl bg-pika-100 dark:bg-pika-950/60 text-pika-600 dark:text-pika-400 flex items-center justify-center mx-auto mb-3 shadow-inner">
-            <Lock className="w-6 h-6" />
+          <div className="w-14 h-14 mx-auto mb-2 flex items-center justify-center">
+            <img
+              src="/pika-logo.png"
+              alt="Pika"
+              className="w-12 h-12 object-contain drop-shadow-md"
+            />
           </div>
           <h2 className="text-lg font-bold text-surface-900 dark:text-white">
             Staff Authentication

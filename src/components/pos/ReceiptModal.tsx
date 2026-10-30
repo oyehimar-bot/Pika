@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Printer, X, ShoppingBag, Tag } from 'lucide-react'
+import { Printer, X, Tag } from 'lucide-react'
 import type { SaleWithItems } from '@/db'
 import { formatCurrency } from '@/utils/currency'
 import { useAppSettings } from '@/context/AppSettingsContext'
@@ -68,8 +68,12 @@ export function ReceiptModal({
         >
           {/* Receipt Header */}
           <div className="text-center pb-3 border-b border-dashed border-gray-300">
-            <div className="inline-flex items-center justify-center p-2 rounded-full bg-purple-100 text-purple-700 mb-1.5 print:hidden">
-              <ShoppingBag className="w-5 h-5" />
+            <div className="flex items-center justify-center mb-1">
+              <img
+                src="/pika-logo.png"
+                alt="Pika"
+                className="w-10 h-10 object-contain"
+              />
             </div>
             <h1 className="text-base font-extrabold tracking-tight uppercase text-gray-900">
               {storeName || 'Pika SME Enterprise'}
