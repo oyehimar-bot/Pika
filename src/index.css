@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* === Purple Brand Palette === */
   --color-pika-50: #faf5ff;
