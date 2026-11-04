@@ -39,64 +39,64 @@ export function BatchListModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in"
+        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-2xl shadow-purple-900/20 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/50">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/60">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-pika-100 dark:bg-pika-950/60 text-pika-700 dark:text-pika-300">
+              <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
                 {product.sku}
               </span>
-              <span className="text-xs text-surface-500 dark:text-surface-400">
+              <span className="text-xs text-slate-400">
                 • {product.category}
               </span>
             </div>
-            <h2 className="text-xl font-bold text-surface-900 dark:text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-pika-500" />
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-purple-500" />
               {product.name}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-all duration-200 ease-in-out active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Product Stock Summary Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-surface-100/50 dark:bg-surface-800/40 border-b border-surface-200 dark:border-surface-800 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50/50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-700/50 text-xs">
           <div>
-            <span className="text-surface-500 dark:text-surface-400 block font-medium">
+            <span className="text-slate-400 block font-medium">
               Total Active Stock
             </span>
-            <span className="text-base font-bold text-surface-900 dark:text-white">
+            <span className="text-base font-semibold text-slate-900 dark:text-white">
               {product.totalStock} {product.unit}s
             </span>
           </div>
           <div>
-            <span className="text-surface-500 dark:text-surface-400 block font-medium">
+            <span className="text-slate-400 block font-medium">
               Inventory Cost Value
             </span>
-            <span className="text-base font-bold text-purple-600 dark:text-purple-400 font-mono">
+            <span className="text-base font-semibold text-purple-500 dark:text-purple-400 font-mono">
               {formatCurrency(product.totalValue)}
             </span>
           </div>
           <div>
-            <span className="text-surface-500 dark:text-surface-400 block font-medium">
+            <span className="text-slate-400 block font-medium">
               Avg. Cost / Unit
             </span>
-            <span className="text-base font-bold text-surface-900 dark:text-white font-mono">
+            <span className="text-base font-semibold text-slate-900 dark:text-white font-mono">
               {formatCurrency(product.avgCostPrice)}
             </span>
           </div>
           <div>
-            <span className="text-surface-500 dark:text-surface-400 block font-medium">
+            <span className="text-slate-400 block font-medium">
               Active Lots
             </span>
-            <span className="text-base font-bold text-surface-900 dark:text-white">
+            <span className="text-base font-semibold text-slate-900 dark:text-white">
               {batches?.length || 0} batches
             </span>
           </div>
@@ -106,10 +106,10 @@ export function BatchListModal({
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-surface-900 dark:text-white flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                 FIFO Batch Inventory Queue
               </h3>
-              <p className="text-xs text-surface-500 dark:text-surface-400">
+              <p className="text-xs text-slate-400">
                 Sorted strictly by arrival date — the topmost batch will be sold first
               </p>
             </div>
@@ -118,7 +118,7 @@ export function BatchListModal({
                 onClose()
                 onOpenReceiveBatch(product)
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pika-600 hover:bg-pika-700 text-white text-xs font-semibold shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-md shadow-purple-900/20 transition-all duration-200 ease-in-out active:scale-95"
             >
               <Plus className="w-3.5 h-3.5" />
               Receive New Batch
@@ -143,19 +143,19 @@ export function BatchListModal({
                   if (daysToExpiry <= 0) {
                     expiryStatus = {
                       label: 'Expired',
-                      color: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400',
+                      color: 'bg-red-500/10 text-red-400 border border-red-500/20',
                       icon: AlertTriangle,
                     }
                   } else if (daysToExpiry <= 14) {
                     expiryStatus = {
                       label: `Expiring in ${daysToExpiry}d`,
-                      color: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400',
+                      color: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
                       icon: Clock,
                     }
                   } else {
                     expiryStatus = {
                       label: `Exp: ${new Date(batch.expiryDate).toLocaleDateString()}`,
-                      color: 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300',
+                      color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-700/50',
                       icon: Calendar,
                     }
                   }
@@ -164,26 +164,26 @@ export function BatchListModal({
                 return (
                   <div
                     key={batch.id}
-                    className={`relative p-4 rounded-xl border transition-all ${
+                    className={`relative p-4 rounded-xl border transition-all duration-200 ease-in-out ${
                       isFifoNext
-                        ? 'border-pika-500/50 bg-pika-50/30 dark:bg-pika-950/20 shadow-md shadow-pika-500/5'
-                        : 'border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900/60 hover:border-surface-300 dark:hover:border-surface-700'
+                        ? 'border-purple-500/50 bg-purple-500/10 shadow-md shadow-purple-500/5'
+                        : 'border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/60 hover:border-purple-500/30 hover:-translate-y-0.5'
                     }`}
                   >
                     {/* Top row: Batch Number, FIFO Badge, Expiry badge, and Actions */}
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         {isFifoNext && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pika-600 text-white uppercase tracking-wider shadow-sm">
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-600 text-white uppercase tracking-wider shadow-sm">
                             <TrendingUp className="w-3 h-3" />
                             #1 Next in FIFO
                           </span>
                         )}
-                        <span className="font-mono font-bold text-sm text-surface-900 dark:text-white">
+                        <span className="font-mono font-semibold text-sm text-slate-900 dark:text-white">
                           {batch.batchNumber}
                         </span>
                         {batch.supplier && (
-                          <span className="text-xs text-surface-500 dark:text-surface-400 hidden sm:inline">
+                          <span className="text-xs text-slate-400 hidden sm:inline">
                             from {batch.supplier}
                           </span>
                         )}
@@ -201,7 +201,7 @@ export function BatchListModal({
 
                         <button
                           onClick={() => setAdjustingBatch(batch)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-200 ease-in-out active:scale-95"
                         >
                           <SlidersHorizontal className="w-3 h-3" />
                           Adjust
@@ -210,31 +210,31 @@ export function BatchListModal({
                     </div>
 
                     {/* Middle row: Quantities and Financials */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2 text-xs text-surface-600 dark:text-surface-300">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-2 text-xs text-slate-600 dark:text-slate-300">
                       <div>
-                        <span className="text-surface-400 block text-[11px]">Remaining</span>
-                        <span className="font-bold text-surface-900 dark:text-white text-sm">
+                        <span className="text-slate-400 block text-[11px]">Remaining</span>
+                        <span className="font-semibold text-slate-900 dark:text-white text-sm">
                           {batch.remainingQty}{' '}
-                          <span className="text-xs font-normal text-surface-400">
+                          <span className="text-xs font-normal text-slate-400">
                             / {batch.initialQty}
                           </span>
                         </span>
                       </div>
                       <div>
-                        <span className="text-surface-400 block text-[11px]">Cost Price</span>
-                        <span className="font-semibold text-surface-900 dark:text-white font-mono">
+                        <span className="text-slate-400 block text-[11px]">Cost Price</span>
+                        <span className="font-semibold text-slate-900 dark:text-white font-mono">
                           {formatCurrency(batch.costPrice)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-surface-400 block text-[11px]">Selling Price</span>
-                        <span className="font-semibold text-surface-900 dark:text-white font-mono">
+                        <span className="text-slate-400 block text-[11px]">Selling Price</span>
+                        <span className="font-semibold text-slate-900 dark:text-white font-mono">
                           {formatCurrency(batch.sellingPrice)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-surface-400 block text-[11px]">Received Date</span>
-                        <span className="font-medium">
+                        <span className="text-slate-400 block text-[11px]">Received Date</span>
+                        <span className="font-medium text-slate-900 dark:text-slate-200">
                           {new Date(batch.receivedDate).toLocaleDateString()}
                         </span>
                       </div>
@@ -242,17 +242,17 @@ export function BatchListModal({
 
                     {/* Bottom: Progress Bar */}
                     <div className="mt-2">
-                      <div className="flex justify-between text-[10px] text-surface-400 font-medium mb-1">
+                      <div className="flex justify-between text-[10px] text-slate-400 font-medium mb-1">
                         <span>Stock Remaining</span>
                         <span>{percentRemaining}%</span>
                       </div>
-                      <div className="h-1.5 w-full bg-surface-100 dark:bg-surface-800 rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
                             percentRemaining > 50
                               ? 'bg-emerald-500'
                               : percentRemaining > 20
-                              ? 'bg-pika-500'
+                              ? 'bg-purple-500'
                               : 'bg-amber-500'
                           }`}
                           style={{ width: `${percentRemaining}%` }}
@@ -264,12 +264,12 @@ export function BatchListModal({
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-xl border border-dashed border-surface-200 dark:border-surface-800">
-              <Layers className="w-10 h-10 text-surface-400 mb-2 opacity-50" />
-              <p className="text-sm font-semibold text-surface-900 dark:text-white">
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700/50">
+              <Layers className="w-10 h-10 text-slate-400 mb-2 opacity-50" />
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">
                 No active batches in stock
               </p>
-              <p className="text-xs text-surface-500 dark:text-surface-400 mt-1 max-w-sm">
+              <p className="text-xs text-slate-400 mt-1 max-w-sm">
                 Receive an incoming inventory batch to replenish stock and initiate FIFO tracking.
               </p>
               <button
@@ -277,7 +277,7 @@ export function BatchListModal({
                   onClose()
                   onOpenReceiveBatch(product)
                 }}
-                className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-pika-600 hover:bg-pika-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-md shadow-purple-900/20 transition-all duration-200 ease-in-out active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 Receive Batch Now
@@ -287,13 +287,13 @@ export function BatchListModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/50">
-          <div className="text-xs text-surface-500 dark:text-surface-400">
-            Reorder Threshold: <strong className="text-surface-900 dark:text-white">{product.reorderLevel} units</strong>
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/60">
+          <div className="text-xs text-slate-400">
+            Reorder Threshold: <strong className="text-slate-900 dark:text-white">{product.reorderLevel} units</strong>
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 text-xs font-semibold transition-colors"
+            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all duration-200 ease-in-out active:scale-95"
           >
             Close
           </button>

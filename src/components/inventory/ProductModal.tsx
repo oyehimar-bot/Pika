@@ -151,16 +151,16 @@ export function ProductModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="relative w-full max-w-xl overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in"
+        className="relative w-full max-w-xl overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-2xl shadow-purple-900/20 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-900/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/60">
           <div>
-            <h2 className="text-lg font-bold text-surface-900 dark:text-white">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
               {isEditing ? 'Edit Product' : 'Add New Product'}
             </h2>
-            <p className="text-xs text-surface-500 dark:text-surface-400">
+            <p className="text-xs text-slate-400">
               {isEditing
                 ? 'Update catalog metadata and inventory thresholds'
                 : 'Define core item parameters for tracking and FIFO batches'}
@@ -168,7 +168,7 @@ export function ProductModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-all duration-200 ease-in-out active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
@@ -185,7 +185,7 @@ export function ProductModal({
 
           {/* Product Name */}
           <div>
-            <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Product Name *
             </label>
             <input
@@ -194,7 +194,7 @@ export function ProductModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Arabica Signature Coffee Beans (1kg)"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
             />
           </div>
 
@@ -203,13 +203,13 @@ export function ProductModal({
             {/* SKU */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-surface-700 dark:text-surface-300">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   SKU Code *
                 </label>
                 <button
                   type="button"
                   onClick={handleGenerateSKU}
-                  className="flex items-center gap-1 text-[11px] font-semibold text-pika-600 dark:text-pika-400 hover:underline"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-purple-500 hover:text-purple-400 hover:underline active:scale-95 transition-all duration-200 ease-in-out"
                 >
                   <Sparkles className="w-3 h-3" />
                   Auto-generate
@@ -221,19 +221,19 @@ export function ProductModal({
                 value={sku}
                 onChange={(e) => setSku(e.target.value.toUpperCase())}
                 placeholder="e.g. BEV-COF-01"
-                className="w-full font-mono uppercase px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+                className="w-full font-mono uppercase px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
 
             {/* Category */}
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Category *
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               >
                 {CATEGORY_PRESETS.map((cat) => (
                   <option key={cat} value={cat}>
@@ -247,7 +247,7 @@ export function ProductModal({
 
           {category === 'Custom' && (
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Custom Category Name
               </label>
               <input
@@ -255,7 +255,7 @@ export function ProductModal({
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
                 placeholder="Enter custom category"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
           )}
@@ -264,13 +264,13 @@ export function ProductModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Unit */}
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Unit of Measure
               </label>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               >
                 {UNIT_PRESETS.map((u) => (
                   <option key={u} value={u}>
@@ -282,7 +282,7 @@ export function ProductModal({
 
             {/* Reorder Level */}
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Low Stock Threshold (Reorder Level)
               </label>
               <input
@@ -291,7 +291,7 @@ export function ProductModal({
                 value={reorderLevel}
                 onChange={(e) => setReorderLevel(e.target.value)}
                 placeholder="5"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
           </div>
@@ -300,13 +300,13 @@ export function ProductModal({
           {showBarcode && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-surface-700 dark:text-surface-300">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Barcode / EAN (Optional)
                 </label>
                 <button
                   type="button"
                   onClick={handleGenerateBarcode}
-                  className="flex items-center gap-1 text-[11px] font-semibold text-pika-600 dark:text-pika-400 hover:underline"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-purple-500 hover:text-purple-400 hover:underline active:scale-95 transition-all duration-200 ease-in-out"
                 >
                   <Barcode className="w-3 h-3" />
                   Generate Code
@@ -317,25 +317,25 @@ export function ProductModal({
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
                 placeholder="e.g. 201948201938 or scan with barcode reader"
-                className="w-full font-mono px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-pika-500/50 focus:border-pika-500 transition-all"
+                className="w-full font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
           )}
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700/50">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 text-surface-600 dark:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 text-sm font-semibold transition-colors"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-semibold active:scale-95 transition-all duration-200 ease-in-out"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-pika-600 to-pika-700 hover:from-pika-700 hover:to-pika-800 text-white text-sm font-semibold shadow-lg shadow-pika-600/25 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20 active:scale-95 transition-all duration-200 ease-in-out disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
               <span>{isEditing ? 'Save Changes' : 'Create Product'}</span>
