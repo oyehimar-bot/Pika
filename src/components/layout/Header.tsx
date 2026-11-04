@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { Menu, Bell, Search, Moon, Sun, Lock, Package, Clock, Layers } from 'lucide-react'
+import { Menu, Bell, Moon, Sun, ChevronDown } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import { useAppSettings } from '@/context/AppSettingsContext'
@@ -10,137 +10,96 @@ interface HeaderProps {
   sidebarCollapsed: boolean
 }
 
-const pageTitles: Record<string, { title: string; subtitle: string }> = {
-  '/dashboard': { title: 'Dashboard', subtitle: 'Overview of your business metrics' },
-  '/inventory': { title: 'Inventory', subtitle: 'Manage products, batches & stock levels' },
-  '/pos': { title: 'Point of Sale', subtitle: 'Fast checkout & receipt generation' },
-  '/receipts': { title: 'Receipt History', subtitle: 'Search, review and reprint thermal receipts' },
-  '/sales': { title: 'Sales Analytics', subtitle: 'Daily & monthly revenue and profit performance' },
-  '/audit': { title: 'Audit Trail', subtitle: 'Activity logs & security events' },
-  '/settings': { title: 'Settings', subtitle: 'App preferences & data management' },
+const routeDetails: Record<string, { title: string; crumb: string }> = {
+  '/dashboard': { title: 'Dashboard', crumb: 'Dashboard' },
+  '/inventory': { title: 'Inventory', crumb: 'Inventory' },
+  '/pos': { title: 'Point of Sale', crumb: 'Point of Sale' },
+  '/receipts': { title: 'Receipt History', crumb: 'Receipts' },
+  '/sales': { title: 'Report Analytics', crumb: 'Analytics' },
+  '/audit': { title: 'User Authentication', crumb: 'Audit Trail' },
+  '/settings': { title: 'Settings', crumb: 'Settings' },
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme()
   const { currentStaff, setIsPinModalOpen } = useAuth()
-  const { businessMode } = useAppSettings()
+  const { storeName } = useAppSettings()
   const location = useLocation()
-  const page = pageTitles[location.pathname] ?? { title: 'Pika', subtitle: '' }
+  const currentRoute = routeDetails[location.pathname] ?? { title: 'Pika', crumb: 'App' }
 
   return (
     <>
-      <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b border-surface-200 dark:border-surface-800 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl no-print print:hidden">
-        {/* Left section */}
-        <div className="flex items-center gap-3">
-          {/* Mobile menu button */}
+      <header className="h-20 px-6 md:px-8 bg-white border-b border-slate-200 flex items-center justify-between no-print print:hidden">
+        {/* Left: Mobile Menu + Page Header / Breadcrumbs */}
+        <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
-            className="p-2 rounded-lg text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 lg:hidden transition-colors"
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 lg:hidden transition-colors"
+            aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Mobile logo icon */}
-          <div className="flex items-center lg:hidden">
-            <img
-              src="/pika-logo.png"
-              alt="Pika Logo"
-              className="w-8 h-8 object-contain"
-            />
-          </div>
-
-          {/* Page title */}
-          <div className="animate-slide-in">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-50">
-                {page.title}
-              </h2>
-
-              {/* Mode Visual Indicator Pill */}
-              <span
-                className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                  businessMode === 'no_expiry'
-                    ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border-sky-200 dark:border-sky-800/60'
-                    : businessMode === 'expiry_only'
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
-                    : 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800/60'
-                }`}
-                title={`Active Business Mode: ${
-                  businessMode === 'no_expiry'
-                    ? 'Products WITHOUT Expiry Date'
-                    : businessMode === 'expiry_only'
-                    ? 'Products WITH Expiry Date'
-                    : 'Hybrid Mode'
-                }`}
-              >
-                {businessMode === 'no_expiry' ? (
-                  <>
-                    <Package className="w-3 h-3 text-sky-500" />
-                    <span>Non-Expiry Mode</span>
-                  </>
-                ) : businessMode === 'expiry_only' ? (
-                  <>
-                    <Clock className="w-3 h-3 text-emerald-500" />
-                    <span>Strict Expiry Mode</span>
-                  </>
-                ) : (
-                  <>
-                    <Layers className="w-3 h-3 text-purple-500" />
-                    <span>Hybrid Mode</span>
-                  </>
-                )}
-              </span>
-            </div>
-            <p className="text-xs text-surface-500 dark:text-surface-400 hidden sm:block">
-              {page.subtitle}
-            </p>
+          <div>
+            <h1 className="text-base font-semibold text-slate-900 leading-none">
+              {currentRoute.title}
+            </h1>
+            <nav className="flex items-center gap-1.5 text-xs text-slate-400 mt-1 font-medium">
+              <span>Home</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-slate-600 font-semibold">{currentRoute.crumb}</span>
+            </nav>
           </div>
         </div>
 
-        {/* Right section */}
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <button className="p-2 rounded-lg text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-pika-600 dark:hover:text-pika-400 transition-colors">
-            <Search className="w-5 h-5" />
-          </button>
+        {/* Right: Store Switcher Pill, Notifications, User Profile */}
+        <div className="flex items-center gap-3">
+          {/* Store / Shop Switcher Pill */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 cursor-default">
+            <span className="max-w-[130px] truncate">{storeName || 'Pika Shop'}</span>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+          </div>
 
-          {/* Notifications */}
-          <button className="relative p-2 rounded-lg text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-pika-600 dark:hover:text-pika-400 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-pika-500 ring-2 ring-white dark:ring-surface-900" />
-          </button>
-
-          {/* Theme toggle */}
+          {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-pika-600 dark:hover:text-pika-400 transition-all duration-300"
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
             {theme === 'dark' ? (
-              <Sun className="w-5 h-5 transition-transform duration-300 hover:rotate-45" />
+              <Sun className="w-4 h-4 text-amber-500" />
             ) : (
-              <Moon className="w-5 h-5 transition-transform duration-300 hover:-rotate-12" />
+              <Moon className="w-4 h-4 text-slate-500" />
             )}
           </button>
 
-          {/* Staff switcher button */}
+          {/* Notification Bell */}
+          <button
+            className="relative p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-purple-600 ring-2 ring-white" />
+          </button>
+
+          {/* User Profile Pill / Button */}
           <button
             onClick={() => setIsPinModalOpen(true)}
-            className="ml-2 flex items-center gap-2 p-1 pr-3 rounded-full bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors border border-surface-200 dark:border-surface-700 shadow-sm"
-            title="Click to switch staff session (PIN)"
+            className="flex items-center gap-2.5 pl-1.5 pr-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200"
+            title="Switch staff profile (PIN)"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pika-500 to-pika-700 flex items-center justify-center text-white text-xs font-bold shadow-md">
-              {currentStaff ? currentStaff.name.substring(0, 1).toUpperCase() : 'P'}
+            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-semibold overflow-hidden shadow-sm">
+              {currentStaff?.name ? currentStaff.name.charAt(0).toUpperCase() : 'A'}
             </div>
-            <div className="text-left hidden md:block">
-              <span className="text-xs font-bold text-surface-800 dark:text-surface-100 block leading-tight">
+            <div className="hidden md:block text-left">
+              <span className="text-xs font-semibold text-slate-800 block leading-tight">
                 {currentStaff?.name || 'Staff'}
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-pika-600 dark:text-pika-400">
+              <span className="text-[10px] text-slate-400 capitalize block leading-tight">
                 {currentStaff?.role || 'User'}
               </span>
             </div>
-            <Lock className="w-3.5 h-3.5 text-surface-400 ml-0.5" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block" />
           </button>
         </div>
       </header>
@@ -150,4 +109,3 @@ export function Header({ onMenuClick }: HeaderProps) {
     </>
   )
 }
-
