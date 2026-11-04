@@ -29,7 +29,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <>
-      <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b border-surface-200 dark:border-surface-800 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl">
+      <header className="flex items-center justify-between h-16 px-4 md:px-6 border-b border-surface-200 dark:border-surface-800 bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl no-print print:hidden">
         {/* Left section */}
         <div className="flex items-center gap-3">
           {/* Mobile menu button */}

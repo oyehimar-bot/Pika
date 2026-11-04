@@ -169,7 +169,8 @@ export function ReceiptsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header section */}
+      <div className="space-y-6 no-print print:hidden">
+        {/* Header section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-surface-900 dark:text-white flex items-center gap-2.5">
@@ -530,6 +531,7 @@ export function ReceiptsPage() {
           )}
         </div>
       )}
+      </div>
 
       {/* Reprint Thermal Receipt Modal */}
       <ReceiptModal

@@ -106,28 +106,23 @@ body {
     size: auto;
   }
 
+  .no-print {
+    display: none !important;
+  }
+
   body {
-    background: #ffffff !important;
-    color: #000000 !important;
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  body * {
-    visibility: hidden !important;
-  }
-
-  #printable-receipt,
-  #printable-receipt * {
-    visibility: visible !important;
-  }
-
   #printable-receipt {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    display: block !important;
+    position: static !important;
     width: 100% !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;

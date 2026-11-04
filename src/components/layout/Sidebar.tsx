@@ -38,6 +38,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
     'fixed lg:relative inset-y-0 left-0 z-50 flex flex-col',
     'bg-white dark:bg-surface-900 border-r border-surface-200 dark:border-surface-800',
     'transition-all duration-300 ease-in-out',
+    'no-print print:hidden',
     collapsed ? 'w-[72px]' : 'w-64',
     mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
   ].join(' ')

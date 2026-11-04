@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Printer, X, Tag } from 'lucide-react'
 import type { SaleWithItems } from '@/db'
 import { formatCurrency } from '@/utils/currency'
@@ -41,14 +42,14 @@ export function ReceiptModal({
     timeStyle: 'short',
   })
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:p-0 print:m-0 print:bg-transparent print:static print:overflow-visible">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:block print:w-auto print:h-auto print:overflow-visible">
       <div
-        className="relative w-full max-w-sm max-h-[95vh] flex flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in print:static print:border-none print:shadow-none print:max-w-none print:w-auto print:rounded-none print:overflow-visible print:max-h-none print:bg-transparent"
+        className="relative w-full max-w-sm max-h-[95vh] flex flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in print:static print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none print:overflow-visible print:max-h-none print:bg-transparent print:m-0 print:p-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Action Header (hidden during thermal printing) */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 print:hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 no-print print:hidden">
           <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             {isReprint ? 'Receipt Viewer (Thermal Reprint)' : 'Sale Completed Successfully'}
@@ -65,9 +66,9 @@ export function ReceiptModal({
         <div
           ref={receiptRef}
           id="printable-receipt"
-          className="flex-1 overflow-y-auto p-6 bg-white text-gray-900 font-mono text-xs select-none print:p-0 print:overflow-visible"
+          className="flex-1 overflow-y-auto p-6 bg-white text-gray-900 font-mono text-xs select-none print:p-0 print:m-0 print:overflow-visible print:block"
         >
-          <div className="receipt-printable-body max-w-[80mm] mx-auto print:p-2">
+          <div className="receipt-printable-body max-w-[80mm] mx-auto print:p-2 print:m-0">
             {/* Receipt Header */}
           <div className="text-center pb-3 border-b border-dashed border-gray-300">
             <div className="flex items-center justify-center mb-1">
@@ -227,7 +228,7 @@ export function ReceiptModal({
       </div>
 
         {/* Modal Controls (hidden during thermal printing) */}
-        <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex gap-2.5 print:hidden">
+        <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex gap-2.5 no-print print:hidden">
           <button
             onClick={onClose}
             className="flex-1 py-2.5 px-4 rounded-xl border border-surface-300 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-700 text-xs font-semibold transition-colors"
@@ -243,6 +244,7 @@ export function ReceiptModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

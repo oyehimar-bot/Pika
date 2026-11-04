@@ -316,7 +316,8 @@ export function POSPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Top Banner: Status & Search */}
+      <div className="space-y-4 no-print print:hidden">
+        {/* Top Banner: Status & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
@@ -863,6 +864,7 @@ export function POSPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Printable Thermal Receipt Modal */}
