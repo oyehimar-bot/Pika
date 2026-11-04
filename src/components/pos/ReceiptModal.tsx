@@ -42,9 +42,9 @@ export function ReceiptModal({
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:p-0 print:m-0 print:bg-transparent print:static print:overflow-visible">
       <div
-        className="relative w-full max-w-sm max-h-[95vh] flex flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in print:border-none print:shadow-none print:max-w-none print:w-[80mm] print:rounded-none"
+        className="relative w-full max-w-sm max-h-[95vh] flex flex-col overflow-hidden rounded-3xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in print:static print:border-none print:shadow-none print:max-w-none print:w-auto print:rounded-none print:overflow-visible print:max-h-none print:bg-transparent"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Action Header (hidden during thermal printing) */}
@@ -64,9 +64,11 @@ export function ReceiptModal({
         {/* Receipt Container — formatted strictly for 80mm / 58mm POS thermal printers */}
         <div
           ref={receiptRef}
-          className="flex-1 overflow-y-auto p-6 bg-white text-gray-900 font-mono text-xs select-none print:p-2 print:overflow-visible"
+          id="printable-receipt"
+          className="flex-1 overflow-y-auto p-6 bg-white text-gray-900 font-mono text-xs select-none print:p-0 print:overflow-visible"
         >
-          {/* Receipt Header */}
+          <div className="receipt-printable-body max-w-[80mm] mx-auto print:p-2">
+            {/* Receipt Header */}
           <div className="text-center pb-3 border-b border-dashed border-gray-300">
             <div className="flex items-center justify-center mb-1">
               <img
@@ -222,6 +224,7 @@ export function ReceiptModal({
             </p>
           </div>
         </div>
+      </div>
 
         {/* Modal Controls (hidden during thermal printing) */}
         <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex gap-2.5 print:hidden">
