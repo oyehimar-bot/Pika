@@ -9,7 +9,7 @@ interface BatchModalProps {
   isOpen: boolean
   onClose: () => void
   preselectedProduct?: Product | null
-  products: Product[]
+  products?: Product[]
   onSuccess?: () => void
 }
 
@@ -17,7 +17,7 @@ export function BatchModal({
   isOpen,
   onClose,
   preselectedProduct,
-  products,
+  products = [],
   onSuccess,
 }: BatchModalProps) {
   const { businessMode, showExpiry, isHybrid } = useAppSettings()
@@ -141,27 +141,27 @@ export function BatchModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div
-        className="relative w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 shadow-2xl shadow-pika-950/40 animate-scale-in"
+        className="relative w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-2xl shadow-purple-900/20 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/60">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
               <Plus className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-surface-900 dark:text-white">
+              <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
                 Receive Stock Batch (FIFO Lot)
               </h2>
-              <p className="text-xs text-surface-500 dark:text-surface-400">
+              <p className="text-xs text-slate-400">
                 Log incoming merchandise with independent unit cost price & selling price
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-surface-400 hover:text-surface-700 dark:hover:text-surface-200 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition-all duration-200 ease-in-out active:scale-95"
           >
             <X className="w-5 h-5" />
           </button>
@@ -178,14 +178,14 @@ export function BatchModal({
 
           {/* Product Selection */}
           <div>
-            <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Select Product *
             </label>
             <select
               value={selectedProductId}
               onChange={(e) => setSelectedProductId(Number(e.target.value))}
               disabled={Boolean(preselectedProduct?.id)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all disabled:opacity-60"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out disabled:opacity-60"
             >
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -199,13 +199,13 @@ export function BatchModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-surface-700 dark:text-surface-300">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Batch Number / Lot Code *
                 </label>
                 <button
                   type="button"
                   onClick={handleGenerateBatch}
-                  className="text-[11px] text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5"
+                  className="text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-500 flex items-center gap-0.5 transition-colors"
                 >
                   <Sparkles className="w-3 h-3" /> Auto
                 </button>
@@ -216,12 +216,12 @@ export function BatchModal({
                 value={batchNumber}
                 onChange={(e) => setBatchNumber(e.target.value)}
                 placeholder="BAT-2026-001"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all uppercase"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out uppercase"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Received Date *
               </label>
               <input
@@ -229,7 +229,7 @@ export function BatchModal({
                 required
                 value={receivedDate}
                 onChange={(e) => setReceivedDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
           </div>
@@ -237,7 +237,7 @@ export function BatchModal({
           {/* Pricing & Quantity Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Unit Cost (₦) *
               </label>
               <input
@@ -248,12 +248,12 @@ export function BatchModal({
                 value={costPrice}
                 onChange={(e) => setCostPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Selling Price (₦) *
               </label>
               <input
@@ -264,12 +264,12 @@ export function BatchModal({
                 value={sellingPrice}
                 onChange={(e) => setSellingPrice(e.target.value)}
                 placeholder="0.00"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Initial Quantity *
               </label>
               <input
@@ -279,39 +279,39 @@ export function BatchModal({
                 value={initialQty}
                 onChange={(e) => setInitialQty(e.target.value)}
                 placeholder="20"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
           </div>
 
           {/* Real-time Profit/Margin Preview Card */}
           {costNum > 0 && sellNum > 0 && (
-            <div className="p-3.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/80 space-y-1.5 animate-fade-in">
+            <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-2 animate-fade-in">
               <div className="flex items-center justify-between text-xs font-semibold text-purple-900 dark:text-purple-300">
                 <span className="flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
                   Lot Profitability Projection
                 </span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="font-bold text-emerald-400">
                   {marginPercent}% Margin
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-xs pt-1 border-t border-purple-200/60 dark:border-purple-800/60 font-mono">
+              <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t border-purple-500/20 font-mono">
                 <div>
-                  <span className="text-surface-400 block font-sans text-[10px]">Unit Profit</span>
-                  <span className="font-semibold text-surface-900 dark:text-white">
+                  <span className="text-slate-400 block font-sans text-[10px]">Unit Profit</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
                     {formatCurrency(unitProfit)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-surface-400 block font-sans text-[10px]">Total Cost</span>
-                  <span className="font-semibold text-surface-900 dark:text-white">
+                  <span className="text-slate-400 block font-sans text-[10px]">Total Cost</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
                     {formatCurrency(totalBatchCost)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-surface-400 block font-sans text-[10px]">Total Profit</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-slate-400 block font-sans text-[10px]">Total Profit</span>
+                  <span className="font-semibold text-emerald-400">
                     {formatCurrency(totalBatchProfit)}
                   </span>
                 </div>
@@ -321,38 +321,38 @@ export function BatchModal({
 
           {/* Expiry Tracking — Adapted dynamically to business mode */}
           {showExpiry && (
-            <div className="p-3.5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50/50 dark:bg-surface-800/30 space-y-2">
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
               {isHybrid ? (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={hasExpiry}
                     onChange={(e) => setHasExpiry(e.target.checked)}
-                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-800"
+                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                   />
-                  <span className="text-xs font-semibold text-surface-900 dark:text-surface-200">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-200">
                     Track Expiration Date for this Batch
                   </span>
                 </label>
               ) : (
-                <span className="text-xs font-semibold text-surface-900 dark:text-surface-200 block">
+                <span className="text-xs font-semibold text-slate-900 dark:text-slate-200 block">
                   Batch Expiration Tracking
                 </span>
               )}
 
               {hasExpiry && (
                 <div className="pt-2">
-                  <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Expiry Date *
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
                       type="date"
                       required={hasExpiry}
                       value={expiryDate}
                       onChange={(e) => setExpiryDate(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
                     />
                   </div>
                 </div>
@@ -363,7 +363,7 @@ export function BatchModal({
           {/* Supplier & Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Supplier / Vendor (Optional)
               </label>
               <input
@@ -371,11 +371,11 @@ export function BatchModal({
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
                 placeholder="e.g. Metro Wholesale Dist."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Notes (Optional)
               </label>
               <input
@@ -383,24 +383,24 @@ export function BatchModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g. Pallet #4, inspected"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
               />
             </div>
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700/50">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300 text-sm font-semibold hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 ease-in-out active:scale-95"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-lg shadow-purple-600/25 transition-all flex items-center gap-2 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-900/20 transition-all duration-200 ease-in-out active:scale-95 flex items-center gap-2 disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
               <span>{isSubmitting ? 'Receiving Batch...' : 'Receive Batch'}</span>
