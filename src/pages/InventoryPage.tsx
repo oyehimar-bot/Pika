@@ -1,64 +1,143 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
-  Package,
-  Plus,
   Search,
-  Layers,
-  AlertTriangle,
-  Clock,
-  TrendingUp,
-  LayoutGrid,
-  Table as TableIcon,
-  Sparkles,
-  ArrowUpDown,
+  Filter,
+  Calendar,
+  Download,
+  MoreHorizontal,
+  Plus,
   Edit2,
   Trash2,
-  Barcode as BarcodeIcon,
+  Layers,
   FileText,
-  DollarSign,
+  Sparkles,
+  SlidersHorizontal,
+  Check,
 } from 'lucide-react'
 import type { ProductWithStock } from '@/db'
 import {
   useProducts,
   useInventoryValuation,
-  useExpiringBatches,
 } from '@/hooks/useDatabase'
 import { seedSampleInventory, deleteProduct } from '@/db'
 import { ProductModal } from '@/components/inventory/ProductModal'
 import { BatchModal } from '@/components/inventory/BatchModal'
 import { BatchListModal } from '@/components/inventory/BatchListModal'
 import { InvoiceImportModal } from '@/components/inventory/InvoiceImportModal'
+import { StockAdjustModal } from '@/components/inventory/StockAdjustModal'
 import { useAppSettings } from '@/context/AppSettingsContext'
 import { formatCurrency, formatNumber } from '@/utils/currency'
 
-type SortField = 'name' | 'stock' | 'value' | 'date'
-type StockStatusFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
+// ─── Product Thumbnail Component ───────────────────────────────────────────────
+function ProductThumbnail({
+  name,
+  imageUrl,
+  category,
+}: {
+  name: string
+  imageUrl?: string
+  category: string
+}) {
+  const [imgError, setImgError] = useState(false)
+
+  if (imageUrl && !imgError) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        onError={() => setImgError(true)}
+        className="w-9 h-9 rounded-md object-cover border border-slate-200 bg-slate-100 flex-shrink-0"
+      />
+    )
+  }
+
+  // Fallback realistic category thumbnail swatches matching reference aesthetic
+  const categoryThemes: Record<string, { bg: string; text: string; symbol: string }> = {
+    Beverages: { bg: 'bg-amber-100 border-amber-200', text: 'text-amber-800', symbol: '☕' },
+    'Dairy & Eggs': { bg: 'bg-blue-100 border-blue-200', text: 'text-blue-800', symbol: '🥛' },
+    Bakery: { bg: 'bg-orange-100 border-orange-200', text: 'text-orange-800', symbol: '🍞' },
+    'Pantry & Staples': { bg: 'bg-emerald-100 border-emerald-200', text: 'text-emerald-800', symbol: '🌾' },
+    'Snacks & Confectionery': { bg: 'bg-pink-100 border-pink-200', text: 'text-pink-800', symbol: '🍪' },
+    'Meat & Poultry': { bg: 'bg-red-100 border-red-200', text: 'text-red-800', symbol: '🥩' },
+    'Fresh Produce': { bg: 'bg-lime-100 border-lime-200', text: 'text-lime-800', symbol: '🥬' },
+    'Household & Cleaning': { bg: 'bg-teal-100 border-teal-200', text: 'text-teal-800', symbol: '🧼' },
+    'Personal Care': { bg: 'bg-indigo-100 border-indigo-200', text: 'text-indigo-800', symbol: '🧴' },
+    'General Merchandise': { bg: 'bg-purple-100 border-purple-200', text: 'text-purple-800', symbol: '📦' },
+    Texture: { bg: 'bg-fuchsia-100 border-fuchsia-200', text: 'text-fuchsia-800', symbol: '🧵' },
+    Fabric: { bg: 'bg-rose-100 border-rose-200', text: 'text-rose-800', symbol: '🧶' },
+  }
+
+  const theme = categoryThemes[category] || {
+    bg: 'bg-purple-50 border-purple-200',
+    text: 'text-purple-700',
+    symbol: name.charAt(0).toUpperCase(),
+  }
+
+  return (
+    <div
+      className={`w-9 h-9 rounded-md border ${theme.bg} flex items-center justify-center text-sm font-semibold ${theme.text} flex-shrink-0 shadow-xs`}
+    >
+      {theme.symbol}
+    </div>
+  )
+}
 
 export function InventoryPage() {
   const products = useProducts()
   const valuation = useInventoryValuation()
-  const expiringBatches = useExpiringBatches(14)
-  const { showExpiry, isNoExpiry } = useAppSettings()
+  const { showExpiry } = useAppSettings()
 
-  // Filters & State
+  // State
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
-  const [statusFilter, setStatusFilter] = useState<StockStatusFilter>('all')
-  const [sortField, setSortField] = useState<SortField>('name')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'in_stock' | 'out_of_stock' | 'low_stock'>('all')
+  const [sortField, setSortField] = useState<'name' | 'stock' | 'value' | 'date'>('name')
   const [sortAsc, setSortAsc] = useState(true)
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+
+  // Selection
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([])
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Filter & Date dropdowns
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [isDateSortOpen, setIsDateSortOpen] = useState(false)
+  const filterRef = useRef<HTMLDivElement>(null)
+  const dateRef = useRef<HTMLDivElement>(null)
+
+  // Active action menu row ID
+  const [activeMenuId, setActiveMenuId] = useState<number | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [productToEdit, setProductToEdit] = useState<ProductWithStock | null>(null)
-
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false)
   const [batchModalProduct, setBatchModalProduct] = useState<ProductWithStock | null>(null)
-
   const [inspectingProduct, setInspectingProduct] = useState<ProductWithStock | null>(null)
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
+  const [adjustingProduct, setAdjustingProduct] = useState<ProductWithStock | null>(null)
 
-  // Unique categories list
+  // Click outside listeners
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false)
+      }
+      if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
+        setIsDateSortOpen(false)
+      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Categories list
   const categories = useMemo(() => {
     if (!products) return ['All']
     const set = new Set<string>()
@@ -68,7 +147,7 @@ export function InventoryPage() {
     return ['All', ...Array.from(set).sort()]
   }, [products])
 
-  // Filtered & sorted products list
+  // Filtered & Sorted products
   const filteredProducts = useMemo(() => {
     if (!products) return []
 
@@ -81,10 +160,7 @@ export function InventoryPage() {
           const matchSku = p.sku.toLowerCase().includes(q)
           const matchCategory = p.category.toLowerCase().includes(q)
           const matchBarcode = p.barcode ? p.barcode.toLowerCase().includes(q) : false
-
-          if (!matchName && !matchSku && !matchCategory && !matchBarcode) {
-            return false
-          }
+          if (!matchName && !matchSku && !matchCategory && !matchBarcode) return false
         }
 
         // Category filter
@@ -92,13 +168,10 @@ export function InventoryPage() {
           return false
         }
 
-        // Stock status filter
+        // Status filter
         if (statusFilter === 'in_stock' && p.totalStock <= 0) return false
-        if (statusFilter === 'low_stock' && !p.isLowStock) return false
         if (statusFilter === 'out_of_stock' && p.totalStock > 0) return false
-        if (statusFilter === 'expiring') {
-          if (!showExpiry || !p.isExpiringSoon) return false
-        }
+        if (statusFilter === 'low_stock' && !p.isLowStock) return false
 
         return true
       })
@@ -120,8 +193,43 @@ export function InventoryPage() {
         }
         return sortAsc ? diff : -diff
       })
-  }, [products, searchQuery, selectedCategory, statusFilter, sortField, sortAsc, showExpiry])
+  }, [products, searchQuery, selectedCategory, statusFilter, sortField, sortAsc])
 
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, statusFilter])
+
+  // Paginated slice
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage))
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredProducts.slice(start, start + itemsPerPage)
+  }, [filteredProducts, currentPage, itemsPerPage])
+
+  // Bulk selection handling
+  const allCurrentPageSelected =
+    paginatedProducts.length > 0 &&
+    paginatedProducts.every((p) => p.id && selectedProductIds.includes(p.id))
+
+  const handleToggleSelectAll = () => {
+    if (allCurrentPageSelected) {
+      const pageIds = paginatedProducts.map((p) => p.id).filter(Boolean) as number[]
+      setSelectedProductIds((prev) => prev.filter((id) => !pageIds.includes(id)))
+    } else {
+      const pageIds = paginatedProducts.map((p) => p.id).filter(Boolean) as number[]
+      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...pageIds])))
+    }
+  }
+
+  const handleToggleSelectRow = (id?: number) => {
+    if (!id) return
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  // Handlers
   const handleOpenAddProduct = () => {
     setProductToEdit(null)
     setIsProductModalOpen(true)
@@ -130,18 +238,55 @@ export function InventoryPage() {
   const handleOpenEditProduct = (prod: ProductWithStock) => {
     setProductToEdit(prod)
     setIsProductModalOpen(true)
+    setActiveMenuId(null)
   }
 
   const handleOpenReceiveBatch = (prod?: ProductWithStock | null) => {
     setBatchModalProduct(prod || null)
     setIsBatchModalOpen(true)
+    setActiveMenuId(null)
   }
 
   const handleDeleteProduct = async (id?: number) => {
     if (!id) return
-    if (confirm('Are you sure you want to archive this product?')) {
+    setActiveMenuId(null)
+    if (confirm('Are you sure you want to delete this product?')) {
       await deleteProduct(id)
     }
+  }
+
+  const handleExportCSV = () => {
+    if (!filteredProducts || filteredProducts.length === 0) return
+    const headers = [
+      'Product Name',
+      'Category',
+      'SKU',
+      'Incoming Batches',
+      'Unit Price (NGN)',
+      'In-Stock Qty',
+      'Total Value (NGN)',
+      'Status',
+    ]
+    const rows = filteredProducts.map((p) => [
+      `"${p.name.replace(/"/g, '""')}"`,
+      `"${p.category}"`,
+      `"${p.sku}"`,
+      p.activeBatchCount || 0,
+      p.suggestedSellingPrice || p.avgSellingPrice,
+      p.totalStock,
+      p.totalValue,
+      p.totalStock > 0 ? 'In-Stock' : 'Out of stock',
+    ])
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `inventory-summary-${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const handleLoadDemo = async () => {
@@ -149,598 +294,495 @@ export function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Page Header */}
+    <div className="space-y-6">
+      {/* ─── Page Header: "Inventory Summary" + "+ Add Product" ───────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Package className="w-7 h-7 text-purple-500" />
-            Inventory & Batch Management
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Real-time catalog, strict FIFO lot costing, and automated expiration monitoring
-          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Inventory Summary
+          </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2.5">
           {(!products || products.length === 0) && (
             <button
               onClick={handleLoadDemo}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all duration-200 ease-in-out active:scale-95 shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors"
             >
-              <Sparkles className="w-4 h-4 text-purple-500" />
-              Load Sample Catalog
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>Load Sample</span>
             </button>
           )}
 
-          {/* Smart PDF Invoice Parser Button */}
           <button
             onClick={() => setIsInvoiceModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-purple-500/20 bg-purple-500/10 text-purple-400 text-xs font-semibold hover:bg-purple-500/20 transition-all duration-200 ease-in-out active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors"
           >
-            <FileText className="w-4 h-4" />
-            <span>Import PDF Invoice</span>
+            <FileText className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden sm:inline">Import Invoice</span>
           </button>
 
           <button
             onClick={() => handleOpenReceiveBatch()}
             disabled={!products || products.length === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all duration-200 ease-in-out active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Layers className="w-4 h-4 text-purple-500" />
-            Receive Batch
+            <Layers className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden sm:inline">Receive Batch</span>
           </button>
 
           <button
             onClick={handleOpenAddProduct}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-md shadow-purple-900/20 transition-all duration-200 ease-in-out active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            Add Product
+            <span>Add Product</span>
           </button>
         </div>
       </div>
 
-      {/* KPI Metric Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Products */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:shadow-purple-900/10 hover:-translate-y-0.5 transition-all duration-200 ease-in-out">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Catalog Products</span>
-            <Package className="w-4 h-4 text-purple-500" />
+      {/* ─── 3-Column Metric Cards ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 1: Categories */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between h-32">
+          <div>
+            <h3 className="text-base font-semibold text-blue-600">
+              Categories
+            </h3>
+            <p className="text-xl font-bold text-slate-900 mt-2 font-mono">
+              Total ({categories.length > 1 ? categories.length - 1 : 0} items)
+            </p>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-mono">
-              {valuation?.totalProducts ?? 0}
-            </span>
-            <span className="text-xs text-slate-400">
-              ({formatNumber(valuation?.totalUnits ?? 0)} units total)
-            </span>
-          </div>
-        </div>
-
-        {/* Total FIFO Inventory Value */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:shadow-purple-900/10 hover:-translate-y-0.5 transition-all duration-200 ease-in-out">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Inventory Value (Cost)</span>
-            <DollarSign className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white font-mono">
-              {formatCurrency(valuation?.totalCostValue || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </span>
-            <span className="text-xs text-emerald-400 font-medium">
-              FIFO Basis
-            </span>
+          <div className="flex justify-end">
+            <span className="text-xs text-slate-400 font-medium">Last week</span>
           </div>
         </div>
 
-        {/* Low Stock Warning */}
-        <div
-          onClick={() => setStatusFilter(statusFilter === 'low_stock' ? 'all' : 'low_stock')}
-          className={`p-6 rounded-2xl border shadow-sm cursor-pointer hover:-translate-y-0.5 transition-all duration-200 ease-in-out active:scale-95 ${
-            statusFilter === 'low_stock'
-              ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20'
-              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/50 hover:border-amber-400'
-          }`}
-        >
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-medium">Low Stock Alerts</span>
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
+        {/* Card 2: Total Product */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between h-32">
+          <div>
+            <h3 className="text-base font-semibold text-amber-600">
+              Total Product
+            </h3>
+            <p className="text-xl font-bold text-slate-900 mt-2 font-mono">
+              Total {formatNumber(valuation?.totalUnits ?? 0)}
+            </p>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-amber-400 font-mono">
-              {valuation?.lowStockCount ?? 0}
-            </span>
-            <span className="text-xs text-slate-400">at or below threshold</span>
+          <div className="flex justify-end">
+            <span className="text-xs text-slate-400 font-medium">Last week</span>
           </div>
         </div>
 
-        {/* Expiring Soon or Projected Margin */}
-        {showExpiry ? (
-          <div
-            onClick={() => setStatusFilter(statusFilter === 'expiring' ? 'all' : 'expiring')}
-            className={`p-6 rounded-2xl border shadow-sm cursor-pointer hover:-translate-y-0.5 transition-all duration-200 ease-in-out active:scale-95 ${
-              statusFilter === 'expiring'
-                ? 'border-red-500 bg-red-50/50 dark:bg-red-950/20'
-                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/50 hover:border-red-400'
-            }`}
-          >
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-medium">Expiring Soon (14d)</span>
-              <Clock className="w-4 h-4 text-red-400" />
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold tracking-tight text-red-400 font-mono">
-                {expiringBatches?.length ?? 0}
-              </span>
-              <span className="text-xs text-slate-400">batches to rotate</span>
-            </div>
+        {/* Card 3: Low Stock */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between h-32">
+          <div>
+            <h3 className="text-base font-semibold text-red-500">
+              Low Stock
+            </h3>
+            <p className="text-xl font-bold text-slate-900 mt-2 font-mono">
+              Total ({valuation?.lowStockCount ?? 0} items)
+            </p>
           </div>
-        ) : (
-          <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-lg hover:shadow-purple-900/10 hover:-translate-y-0.5 transition-all duration-200 ease-in-out">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-medium">Projected Margin</span>
-              <TrendingUp className="w-4 h-4 text-purple-500" />
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold tracking-tight text-purple-500 font-mono">
-                {formatCurrency(valuation?.potentialProfit || 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </span>
-              <span className="text-xs text-slate-400">estimated profit</span>
-            </div>
+          <div className="flex justify-end">
+            <span className="text-xs text-slate-400 font-medium">Last week</span>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Filter and Control Toolbar */}
-      <div className="space-y-3">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Search Bar */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      {/* ─── Main Data Table Container: "Inventory Items" ─────────────────────── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
+        {/* Table Title */}
+        <h3 className="text-base font-semibold text-slate-900 mb-5">
+          Inventory Items
+        </h3>
+
+        {/* Top Bar: Search Left | Filter, Date, Export Right */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
+          {/* Left: Search input */}
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isNoExpiry ? 'Search by product name, SKU, or category...' : 'Search by product name, SKU, category, or barcode...'}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ease-in-out"
+              placeholder="Search"
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-colors"
             />
           </div>
 
-          {/* Sort & View Options */}
-          <div className="flex items-center gap-2">
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <select
-                value={sortField}
-                onChange={(e) => setSortField(e.target.value as SortField)}
-                className="bg-transparent border-none outline-none cursor-pointer pr-1"
-              >
-                <option value="name">Sort by Name</option>
-                <option value="stock">Sort by Stock</option>
-                <option value="value">Sort by Value</option>
-                <option value="date">Sort by Date</option>
-              </select>
+          {/* Right: Filter, Date, Export */}
+          <div className="flex items-center gap-2.5">
+            {/* Filter Dropdown */}
+            <div className="relative" ref={filterRef}>
               <button
-                onClick={() => setSortAsc(!sortAsc)}
-                className="text-[11px] font-bold text-purple-500 ml-1 hover:underline transition-colors active:scale-95"
+                onClick={() => {
+                  setIsFilterOpen(!isFilterOpen)
+                  setIsDateSortOpen(false)
+                }}
+                className={`border border-slate-200 rounded-lg px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-1.5 transition-colors bg-white ${
+                  selectedCategory !== 'All' || statusFilter !== 'all'
+                    ? 'border-purple-500 text-purple-600 bg-purple-50/50'
+                    : ''
+                }`}
               >
-                {sortAsc ? 'ASC' : 'DESC'}
+                <Filter className="w-3.5 h-3.5" />
+                <span>Filter</span>
+                {(selectedCategory !== 'All' || statusFilter !== 'all') && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
+                )}
               </button>
+
+              {/* Filter Popover */}
+              {isFilterOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl p-4 shadow-lg z-30 space-y-4">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-900 block mb-2">Category</span>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            setSelectedCategory(cat)
+                            setIsFilterOpen(false)
+                          }}
+                          className={`w-full text-left px-2 py-1 rounded text-xs flex items-center justify-between ${
+                            selectedCategory === cat
+                              ? 'bg-purple-50 text-purple-600 font-semibold'
+                              : 'text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{cat}</span>
+                          {selectedCategory === cat && <Check className="w-3.5 h-3.5" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-3">
+                    <span className="text-xs font-semibold text-slate-900 block mb-2">Stock Status</span>
+                    <div className="grid grid-cols-2 gap-1.5 text-xs">
+                      {[
+                        { id: 'all', label: 'All' },
+                        { id: 'in_stock', label: 'In-Stock' },
+                        { id: 'low_stock', label: 'Low Stock' },
+                        { id: 'out_of_stock', label: 'Out of stock' },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setStatusFilter(item.id as typeof statusFilter)
+                            setIsFilterOpen(false)
+                          }}
+                          className={`px-2 py-1 rounded text-center border text-xs font-medium ${
+                            statusFilter === item.id
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* View Mode Toggle */}
-            <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-800 p-0.5">
+            {/* Date / Sort Dropdown */}
+            <div className="relative" ref={dateRef}>
               <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 rounded-lg text-xs font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                  viewMode === 'table'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
+                onClick={() => {
+                  setIsDateSortOpen(!isDateSortOpen)
+                  setIsFilterOpen(false)
+                }}
+                className={`border border-slate-200 rounded-lg px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-1.5 transition-colors bg-white ${
+                  sortField !== 'name' ? 'border-purple-500 text-purple-600 bg-purple-50/50' : ''
                 }`}
-                title="Table view"
               >
-                <TableIcon className="w-4 h-4" />
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Date</span>
               </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg text-xs font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                  viewMode === 'grid'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-                title="Grid view"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
+
+              {/* Date Sort Popover */}
+              {isDateSortOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl p-3 shadow-lg z-30 space-y-1 text-xs">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block px-2 pb-1">
+                    Sort Column
+                  </span>
+                  {[
+                    { id: 'name', label: 'Product Name' },
+                    { id: 'date', label: 'Date Added' },
+                    { id: 'stock', label: 'In-Stock Qty' },
+                    { id: 'value', label: 'Total Value' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        if (sortField === s.id) {
+                          setSortAsc(!sortAsc)
+                        } else {
+                          setSortField(s.id as typeof sortField)
+                          setSortAsc(true)
+                        }
+                        setIsDateSortOpen(false)
+                      }}
+                      className={`w-full text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                        sortField === s.id
+                          ? 'bg-purple-50 text-purple-600 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{s.label}</span>
+                      {sortField === s.id && (
+                        <span className="text-[10px] font-bold">{sortAsc ? 'ASC' : 'DESC'}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Export Button (Purple) */}
+            <button
+              onClick={handleExportCSV}
+              disabled={filteredProducts.length === 0}
+              className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3.5 py-2 text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export</span>
+            </button>
           </div>
         </div>
 
-        {/* Category Pills & Status Tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          {/* Categories */}
-          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                  selectedCategory === cat
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-900/20'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/60 border border-slate-200 dark:border-slate-700/50'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        {/* ─── Table Content ─────────────────────────────────────────────────── */}
+        <div className="overflow-x-auto -mx-6 px-6">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-400 text-xs font-medium">
+                <th className="py-3.5 pr-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allCurrentPageSelected}
+                    onChange={handleToggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                  />
+                </th>
+                <th className="py-3.5 px-3">Product Name</th>
+                <th className="py-3.5 px-3">Category</th>
+                <th className="py-3.5 px-3">SKU</th>
+                <th className="py-3.5 px-3">Incoming row</th>
+                <th className="py-3.5 px-3">Unit Price</th>
+                <th className="py-3.5 px-3">In-Stock</th>
+                <th className="py-3.5 px-3">Total Value</th>
+                {showExpiry && <th className="py-3.5 px-3">Expiry Date</th>}
+                <th className="py-3.5 px-3">Status</th>
+                <th className="py-3.5 pl-3 pr-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {paginatedProducts.length > 0 ? (
+                paginatedProducts.map((p) => {
+                  const isChecked = p.id ? selectedProductIds.includes(p.id) : false
+                  const isOutOfStock = p.totalStock <= 0
+
+                  return (
+                    <tr
+                      key={p.id}
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        isChecked ? 'bg-purple-50/30' : ''
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-4 pr-3">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelectRow(p.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                        />
+                      </td>
+
+                      {/* Product (Image + Name) */}
+                      <td className="py-4 px-3">
+                        <div className="flex items-center gap-3">
+                          <ProductThumbnail
+                            name={p.name}
+                            imageUrl={p.imageUrl}
+                            category={p.category}
+                          />
+                          <span className="font-medium text-slate-900 truncate max-w-xs" title={p.name}>
+                            {p.name}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-4 px-3 text-slate-500 font-medium">
+                        {p.category}
+                      </td>
+
+                      {/* SKU */}
+                      <td className="py-4 px-3 text-slate-500 font-mono text-xs font-medium">
+                        {p.sku}
+                      </td>
+
+                      {/* Incoming row */}
+                      <td className="py-4 px-3 text-slate-600 font-medium font-mono">
+                        {p.activeBatchCount || 0}
+                      </td>
+
+                      {/* Unit Price (₦ NGN) */}
+                      <td className="py-4 px-3 text-slate-900 font-medium font-mono">
+                        {formatCurrency(p.suggestedSellingPrice || p.avgSellingPrice)}
+                      </td>
+
+                      {/* In-Stock Qty */}
+                      <td className="py-4 px-3 text-slate-900 font-medium font-mono">
+                        {p.totalStock}
+                      </td>
+
+                      {/* Total Value (₦ NGN) */}
+                      <td className="py-4 px-3 text-slate-900 font-medium font-mono">
+                        {formatCurrency(p.totalValue)}
+                      </td>
+
+                      {/* Expiry Date (Dynamic) */}
+                      {showExpiry && (
+                        <td className="py-4 px-3 text-slate-500 text-xs font-mono">
+                          {p.earliestExpiry ? (
+                            <span className={p.isExpiringSoon ? 'text-red-500 font-semibold' : ''}>
+                              {new Date(p.earliestExpiry).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Status Column with Colored Dots */}
+                      <td className="py-4 px-3">
+                        {isOutOfStock ? (
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-red-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                            <span>out of stock</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            <span>In-Stock</span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Action Column with Dropdown Menu */}
+                      <td className="py-4 pl-3 pr-2 text-right relative">
+                        <button
+                          onClick={() => setActiveMenuId(activeMenuId === p.id ? null : p.id || null)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Actions"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {activeMenuId === p.id && (
+                          <div
+                            ref={menuRef}
+                            className="absolute right-2 top-12 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-30 p-1 text-left space-y-0.5 text-xs"
+                          >
+                            <button
+                              onClick={() => handleOpenEditProduct(p)}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors font-medium"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Edit Product</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenReceiveBatch(p)}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors font-medium"
+                            >
+                              <Layers className="w-3.5 h-3.5 text-purple-600" />
+                              <span>Receive Batch</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setInspectingProduct(p)
+                                setActiveMenuId(null)
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors font-medium"
+                            >
+                              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Inspect Batches</span>
+                            </button>
+
+                            <div className="border-t border-slate-100 my-1" />
+
+                            <button
+                              onClick={() => handleDeleteProduct(p.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors font-medium"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                              <span>Delete Product</span>
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              ) : (
+                /* Empty row state */
+                <tr>
+                  <td
+                    colSpan={showExpiry ? 11 : 10}
+                    className="py-12 text-center text-slate-400"
+                  >
+                    <p className="text-sm font-medium">No inventory items match your search or filters.</p>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('')
+                        setSelectedCategory('All')
+                        setStatusFilter('all')
+                      }}
+                      className="mt-2 text-xs font-semibold text-purple-600 hover:underline"
+                    >
+                      Clear all filters
+                    </button>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ─── Bottom Bar: Pagination Controls ─────────────────────────────────── */}
+        <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1}
+              className="border border-slate-200 rounded-lg px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+              className="border border-slate-200 rounded-lg px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed bg-white transition-colors"
+            >
+              Next
+            </button>
           </div>
 
-          {/* Status Filter Badges */}
-          <div className="flex items-center gap-1.5 text-xs">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                statusFilter === 'all'
-                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setStatusFilter('low_stock')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                statusFilter === 'low_stock'
-                  ? 'bg-amber-500 text-white font-semibold'
-                  : 'text-amber-400 hover:underline'
-              }`}
-            >
-              Low Stock
-            </button>
-            {showExpiry && (
-              <button
-                onClick={() => setStatusFilter('expiring')}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                  statusFilter === 'expiring'
-                    ? 'bg-red-500 text-white font-semibold'
-                    : 'text-red-400 hover:underline'
-                }`}
-              >
-                Expiring
-              </button>
-            )}
-            <button
-              onClick={() => setStatusFilter('out_of_stock')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                statusFilter === 'out_of_stock'
-                  ? 'bg-red-500 text-white font-semibold'
-                  : 'text-red-400 hover:underline'
-              }`}
-            >
-              Out of Stock
-            </button>
+          <div className="text-xs font-medium text-slate-500">
+            Page {currentPage} of {totalPages}
           </div>
         </div>
       </div>
 
-      {/* Main Content: Table or Grid View */}
-      {filteredProducts.length > 0 ? (
-        viewMode === 'table' ? (
-          /* Table View */
-          <div className="overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/70 dark:bg-slate-900/70 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    <th className="py-4 px-4">Product & SKU</th>
-                    <th className="py-4 px-4">Category</th>
-                    <th className="py-4 px-4 text-center">Active Lots</th>
-                    <th className="py-4 px-4">Stock Level</th>
-                    <th className="py-4 px-4">Avg. Cost</th>
-                    <th className="py-4 px-4">Selling Price</th>
-                    <th className="py-4 px-4">FIFO Valuation</th>
-                    <th className="py-4 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                  {filteredProducts.map((product) => {
-                    const isOutOfStock = product.totalStock <= 0
-                    const isLowStock = product.isLowStock
-
-                    return (
-                      <tr
-                        key={product.id}
-                        className="hover:bg-slate-50/60 dark:hover:bg-slate-900/40 transition-all duration-200 ease-in-out group cursor-pointer"
-                        onClick={() => setInspectingProduct(product)}
-                      >
-                        {/* Product & SKU */}
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-xs flex-shrink-0 border border-purple-500/20">
-                              {product.name.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold tracking-tight text-slate-900 dark:text-white truncate">
-                                {product.name}
-                              </p>
-                              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                                <span className="font-mono font-medium text-purple-400">
-                                  {product.sku}
-                                </span>
-                                {!isNoExpiry && product.barcode && (
-                                  <span className="flex items-center gap-0.5 text-slate-400">
-                                    <BarcodeIcon className="w-3 h-3" />
-                                    {product.barcode}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Category */}
-                        <td className="py-4 px-4 text-slate-400">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50">
-                            {product.category}
-                          </span>
-                        </td>
-
-                        {/* Active Batches Count */}
-                        <td className="py-4 px-4 text-center">
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setInspectingProduct(product)
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition-all duration-200 ease-in-out active:scale-95 cursor-pointer"
-                          >
-                            <Layers className="w-3 h-3" />
-                            {product.activeBatchCount} lot{product.activeBatchCount === 1 ? '' : 's'}
-                          </span>
-                        </td>
-
-                        {/* Stock Level & Status Badge */}
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 dark:text-white font-mono">
-                              {product.totalStock} {product.unit}s
-                            </span>
-                            {isOutOfStock ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                                OUT
-                              </span>
-                            ) : isLowStock ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                LOW
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">
-                            Reorder: {product.reorderLevel}
-                          </div>
-                        </td>
-
-                        {/* Avg Cost */}
-                        <td className="py-4 px-4 text-slate-400 font-medium font-mono">
-                          {formatCurrency(product.avgCostPrice)}
-                        </td>
-
-                        {/* Selling Price */}
-                        <td className="py-4 px-4 text-slate-900 dark:text-white font-semibold font-mono">
-                          {formatCurrency(product.suggestedSellingPrice || product.avgSellingPrice)}
-                        </td>
-
-                        {/* Total FIFO Valuation */}
-                        <td className="py-4 px-4 font-mono">
-                          <span className="font-bold text-purple-400">
-                            {formatCurrency(product.totalValue)}
-                          </span>
-                          {showExpiry && product.isExpiringSoon && (
-                            <div className="flex items-center gap-1 text-[11px] text-red-400 font-semibold mt-0.5 font-sans">
-                              <Clock className="w-3 h-3" />
-                              Near Expiry
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Row Actions */}
-                        <td className="py-4 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setInspectingProduct(product)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-purple-600 hover:text-white transition-all duration-200 ease-in-out active:scale-95 border border-slate-200 dark:border-slate-700/50"
-                              title="Inspect Batches"
-                            >
-                              Lots
-                            </button>
-                            <button
-                              onClick={() => handleOpenReceiveBatch(product)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 ease-in-out active:scale-95"
-                              title="Receive Stock Batch"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditProduct(product)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 ease-in-out active:scale-95"
-                              title="Edit Product"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProduct(product.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 ease-in-out active:scale-95"
-                              title="Archive Product"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          /* Grid View */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredProducts.map((product) => {
-              const isOutOfStock = product.totalStock <= 0
-              const isLowStock = product.isLowStock
-
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => setInspectingProduct(product)}
-                  className="group relative overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 p-6 shadow-sm hover:shadow-lg hover:shadow-purple-900/10 hover:-translate-y-0.5 transition-all duration-200 ease-in-out cursor-pointer"
-                >
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md">
-                        {product.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold tracking-tight text-slate-900 dark:text-white text-base transition-colors line-clamp-1">
-                          {product.name}
-                        </h3>
-                        <span className="font-mono text-xs text-purple-400 font-semibold">
-                          {product.sku}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isOutOfStock ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                        OUT
-                      </span>
-                    ) : isLowStock ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        LOW
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        IN STOCK
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Stock Details */}
-                  <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50 text-xs">
-                    <div>
-                      <span className="text-slate-400 block text-xs">Total Stock</span>
-                      <span className="text-lg font-bold text-slate-900 dark:text-white font-mono">
-                        {product.totalStock}{' '}
-                        <span className="text-xs font-normal text-slate-400 font-sans">
-                          {product.unit}s
-                        </span>
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-xs">FIFO Valuation</span>
-                      <span className="text-lg font-bold text-purple-400 font-mono">
-                        {formatCurrency(product.totalValue, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-xs">Active Lots</span>
-                      <span className="font-semibold text-slate-300">
-                        {product.activeBatchCount} lot{product.activeBatchCount === 1 ? '' : 's'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-xs">Selling Price</span>
-                      <span className="font-semibold text-slate-300 font-mono">
-                        {formatCurrency(product.suggestedSellingPrice || product.avgSellingPrice)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Near Expiry Alert Banner */}
-                  {showExpiry && product.isExpiringSoon && (
-                    <div className="mt-3 flex items-center gap-1.5 p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
-                      <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Has batch lot expiring soon!</span>
-                    </div>
-                  )}
-
-                  {/* Card Actions */}
-                  <div
-                    className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/50"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => setInspectingProduct(product)}
-                      className="flex items-center gap-1 text-xs font-semibold text-purple-400 hover:underline transition-colors active:scale-95"
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      Inspect Batches
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenReceiveBatch(product)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all duration-200 ease-in-out active:scale-95"
-                      >
-                        + Batch
-                      </button>
-                      <button
-                        onClick={() => handleOpenEditProduct(product)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200 ease-in-out active:scale-95"
-                        title="Edit Product"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-700/50 transition-all duration-200 ease-in-out active:scale-95"
-                        title="Archive Product"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )
-      ) : (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center mb-4 border border-slate-200 dark:border-slate-700/50">
-            <Package className="w-8 h-8 text-slate-400" />
-          </div>
-          <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
-            {searchQuery || selectedCategory !== 'All' || statusFilter !== 'all'
-              ? 'No matching products found'
-              : 'Your inventory catalog is empty'}
-          </h3>
-          <p className="text-sm text-slate-400 max-w-sm mt-1">
-            {searchQuery || selectedCategory !== 'All' || statusFilter !== 'all'
-              ? 'Try adjusting your search criteria, category filter, or stock level tabs.'
-              : 'Start by adding your first product, receiving an incoming stock batch, or uploading an invoice.'}
-          </p>
-          <div className="mt-5 flex gap-3">
-            <button
-              onClick={handleOpenAddProduct}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs shadow-md shadow-purple-900/20 transition-all duration-200 ease-in-out active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              Add First Product
-            </button>
-          </div>
-        </div>
-      )}
-
+      {/* ─── Modals ──────────────────────────────────────────────────────────── */}
       {/* Product Modal (Add / Edit) */}
       <ProductModal
         isOpen={isProductModalOpen}
@@ -748,7 +790,7 @@ export function InventoryPage() {
         productToEdit={productToEdit}
       />
 
-      {/* Batch Modal (Receive Batch) */}
+      {/* Batch Modal (Receive Stock) */}
       <BatchModal
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
@@ -756,7 +798,7 @@ export function InventoryPage() {
         products={products || []}
       />
 
-      {/* Batch Inspection / Detail Modal */}
+      {/* Batch Inspection Modal */}
       <BatchListModal
         isOpen={Boolean(inspectingProduct)}
         onClose={() => setInspectingProduct(null)}
@@ -767,11 +809,19 @@ export function InventoryPage() {
         }}
       />
 
-      {/* Smart Invoice PDF Importer Modal */}
+      {/* Smart Invoice PDF Importer */}
       <InvoiceImportModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}
         onSuccess={() => {}}
+      />
+
+      {/* Stock Adjust Modal */}
+      <StockAdjustModal
+        isOpen={Boolean(adjustingProduct)}
+        onClose={() => setAdjustingProduct(null)}
+        batch={null}
+        productName={adjustingProduct?.name || ''}
       />
     </div>
   )
