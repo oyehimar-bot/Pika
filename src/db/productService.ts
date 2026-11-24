@@ -16,6 +16,8 @@ export interface CreateProductInput {
   reorderLevel: number
   barcode?: string
   imageUrl?: string
+  piecesPerCarton?: number
+  wholesalePrice?: number
 }
 
 export interface UpdateProductInput extends Partial<CreateProductInput> {
@@ -50,6 +52,8 @@ export async function createProduct(
     reorderLevel: Math.max(0, Number(input.reorderLevel) || 0),
     barcode: input.barcode?.trim() || '',
     imageUrl: input.imageUrl?.trim() || '',
+    piecesPerCarton: input.piecesPerCarton ? Math.max(1, Math.floor(input.piecesPerCarton)) : 1,
+    wholesalePrice: input.wholesalePrice !== undefined ? Math.max(0, Number(input.wholesalePrice)) : undefined,
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -96,6 +100,12 @@ export async function updateProduct(
   }
   if (input.barcode !== undefined) updates.barcode = input.barcode.trim()
   if (input.imageUrl !== undefined) updates.imageUrl = input.imageUrl.trim()
+  if (input.piecesPerCarton !== undefined) {
+    updates.piecesPerCarton = Math.max(1, Math.floor(input.piecesPerCarton))
+  }
+  if (input.wholesalePrice !== undefined) {
+    updates.wholesalePrice = Math.max(0, Number(input.wholesalePrice))
+  }
   if (input.isActive !== undefined) updates.isActive = input.isActive
 
   await db.products.update(id, updates)

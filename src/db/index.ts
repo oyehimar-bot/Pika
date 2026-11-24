@@ -31,6 +31,8 @@ export type {
   AppSetting,
   ReceiptSnapshot,
   ReceiptItemSnapshot,
+  Debtor,
+  CreditPayment,
 } from './models'
 
 // FIFO inventory engine
@@ -94,6 +96,22 @@ export type {
   PaymentMethodShare,
   SalesAnalyticsResult,
 } from './salesAnalyticsService'
+
+// Debtor & Credit service
+export {
+  recordCreditSale,
+  recordDebtorPayment,
+  getDebtorStats,
+  getDebtorDetails,
+  normalizePhone,
+} from './debtorService'
+export type {
+  RecordCreditSaleInput,
+  RecordPaymentInput,
+  DebtorStats,
+  DebtorDetails,
+} from './debtorService'
+
 
 
 

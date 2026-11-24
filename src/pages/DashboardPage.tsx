@@ -11,6 +11,7 @@ import {
   Receipt,
   BarChart3,
   Lock,
+  Users,
 } from 'lucide-react'
 import {
   useInventoryValuation,
@@ -18,6 +19,7 @@ import {
   useProducts,
   useExpiringBatches,
   useSalesAnalytics,
+  useDebtorStats,
 } from '@/hooks/useDatabase'
 import { useAppSettings } from '@/context/AppSettingsContext'
 import { useAuth } from '@/context/AuthContext'
@@ -32,6 +34,7 @@ export function DashboardPage() {
   const products = useProducts()
   const expiringBatches = useExpiringBatches(14)
   const salesAnalytics = useSalesAnalytics('this_month')
+  const debtorStats = useDebtorStats()
   const { showExpiry, storeName, businessMode, isNoExpiry } = useAppSettings()
 
   const bannerStyle = useMemo(() => {
@@ -205,6 +208,13 @@ export function DashboardPage() {
               <Receipt className="w-4 h-4" />
               Receipt History
             </Link>
+            <Link
+              to="/debtors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-all duration-200 ease-in-out hover:-translate-y-0.5 active:scale-95 backdrop-blur-sm border border-white/20"
+            >
+              <Users className="w-4 h-4" />
+              Debtors Ledger
+            </Link>
           </div>
         </div>
         {/* Decorative elements */}
@@ -212,6 +222,35 @@ export function DashboardPage() {
         <div className={`absolute -right-4 top-12 w-28 h-28 rounded-full ${bannerStyle.decor2} pointer-events-none`} />
         <div className={`absolute right-24 -bottom-6 w-36 h-36 rounded-full ${bannerStyle.decor1} pointer-events-none`} />
       </div>
+
+      {/* Debtors & Credit Alert Banner (if there are outstanding credits) */}
+      {debtorStats && debtorStats.totalOutstanding > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm flex items-center gap-2">
+                <span>Active Debtor Balance:</span>
+                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                  {formatCurrency(debtorStats.totalOutstanding)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {debtorStats.activeDebtorsCount} {debtorStats.activeDebtorsCount === 1 ? 'customer owes' : 'customers owe'} payment across credit sales.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/debtors"
+            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-all duration-200 ease-in-out active:scale-95 shadow-sm"
+          >
+            <span>Manage Debtors</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
 
       {/* Metrics grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

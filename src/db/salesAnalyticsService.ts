@@ -244,6 +244,7 @@ export async function getComprehensiveSalesAnalytics(
     cash: { count: 0, revenue: 0 },
     transfer: { count: 0, revenue: 0 },
     card: { count: 0, revenue: 0 },
+    credit: { count: 0, revenue: 0 },
   }
 
   for (const s of filteredSales) {
@@ -262,6 +263,7 @@ export async function getComprehensiveSalesAnalytics(
     cash: 'Cash',
     transfer: 'Bank Transfer',
     card: 'POS / Card',
+    credit: 'Credit / Pay Later',
   }
 
   const paymentBreakdown: PaymentMethodShare[] = (

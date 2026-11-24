@@ -16,6 +16,7 @@ const routeDetails: Record<string, { title: string; crumb: string }> = {
   '/pos': { title: 'Point of Sale', crumb: 'Point of Sale' },
   '/receipts': { title: 'Receipt History', crumb: 'Receipts' },
   '/sales': { title: 'Report Analytics', crumb: 'Analytics' },
+  '/debtors': { title: 'Debtors & Credit', crumb: 'Debtors' },
   '/audit': { title: 'User Authentication', crumb: 'Audit Trail' },
   '/settings': { title: 'Settings', crumb: 'Settings' },
 }

@@ -5,6 +5,7 @@ import { InventoryPage } from '@/pages/InventoryPage'
 import { POSPage } from '@/pages/POSPage'
 import { ReceiptsPage } from '@/pages/ReceiptsPage'
 import { SalesAnalyticsPage } from '@/pages/SalesAnalyticsPage'
+import { DebtorsPage } from '@/pages/DebtorsPage'
 import { AuditPage } from '@/pages/AuditPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/pos" element={<POSPage />} />
         <Route path="/receipts" element={<ReceiptsPage />} />
         <Route path="/sales" element={<SalesAnalyticsPage />} />
+        <Route path="/debtors" element={<DebtorsPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

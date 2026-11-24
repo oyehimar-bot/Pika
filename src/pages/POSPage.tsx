@@ -18,6 +18,7 @@ import {
   Edit2,
   Check,
   Search,
+  Users,
 } from 'lucide-react'
 import type { ProductWithStock, CartItem, PaymentMethod, SaleWithItems } from '@/db'
 import { useProducts } from '@/hooks/useDatabase'
@@ -52,8 +53,11 @@ export function POSPage() {
   // Payment details
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [cashTendered, setCashTendered] = useState<string>('')
-  const [customerName] = useState('')
-  const [notes] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [paidNow, setPaidNow] = useState<string>('')
+  const [paidNowMethod, setPaidNowMethod] = useState<'cash' | 'transfer' | 'card'>('cash')
+  const [notes, setNotes] = useState('')
 
   // Checkout submission & Receipt
   const [isProcessing, setIsProcessing] = useState(false)
@@ -62,18 +66,6 @@ export function POSPage() {
   const [isReceiptOpen, setIsReceiptOpen] = useState(false)
 
   const barcodeInputRef = useRef<HTMLInputElement>(null)
-
-  // Listen to network status
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
 
   // Categories list
   const categories = useMemo(() => {
@@ -145,6 +137,8 @@ export function POSPage() {
           productName: product.name,
           sku: product.sku,
           quantity: 1,
+          unitType: 'pc',
+          piecesPerCarton: product.piecesPerCarton || 1,
           unitPrice: effectiveSellingPrice,
           maxAvailable: product.totalStock,
           batches: [],
@@ -185,8 +179,49 @@ export function POSPage() {
     setCart([])
     setDiscountValue('0')
     setCashTendered('')
+    setCustomerName('')
+    setCustomerPhone('')
+    setPaidNow('')
     setCheckoutError(null)
     setEditingPriceProductId(null)
+  }
+
+  // Toggle between Piece (pc) and Carton (ctn)
+  const toggleUnitType = (productId: number) => {
+    const product = products?.find((p) => p.id === productId)
+    if (!product) return
+
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.productId === productId) {
+          const nextUnit = item.unitType === 'ctn' ? 'pc' : 'ctn'
+          const ppc = product.piecesPerCarton || 1
+          const nextPrice =
+            nextUnit === 'ctn'
+              ? product.wholesalePrice || (product.suggestedSellingPrice || 0) * ppc
+              : product.suggestedSellingPrice || 0
+
+          return {
+            ...item,
+            unitType: nextUnit,
+            piecesPerCarton: ppc,
+            unitPrice: nextPrice,
+            customPrice: undefined, // reset any custom negotiated price when switching unit type
+          }
+        }
+        return item
+      })
+    )
+  }
+
+  // Helper to format stock in cartons and pieces (like GTTG fs)
+  const formatStockPieces = (pcs: number, ppc?: number) => {
+    if (!ppc || ppc <= 1) return `${pcs} pcs`
+    const ctns = Math.floor(pcs / ppc)
+    const rem = pcs % ppc
+    if (ctns > 0 && rem > 0) return `${ctns} ctn + ${rem} pcs`
+    if (ctns > 0) return `${ctns} ctn`
+    return `${rem} pcs`
   }
 
   // Start editing unit price
@@ -286,6 +321,19 @@ export function POSPage() {
       return
     }
 
+    if (paymentMethod === 'credit') {
+      if (!customerName.trim()) {
+        setCheckoutError('Customer name is required for a credit / debtor transaction.')
+        return
+      }
+      if (!customerPhone.trim()) {
+        setCheckoutError('Customer phone number is required to track debt statement and reminders.')
+        return
+      }
+    }
+
+    const paidNowNum = parseFloat(paidNow) || 0
+
     try {
       setIsProcessing(true)
       setCheckoutError(null)
@@ -298,6 +346,9 @@ export function POSPage() {
         staffId: currentStaff?.id ? String(currentStaff.id) : '1',
         staffName: currentStaff?.name || 'Cashier',
         customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        paidNow: paidNowNum > 0 ? paidNowNum : undefined,
+        paidNowMethod,
         notes: notes.trim() || undefined,
       })
 
@@ -313,6 +364,34 @@ export function POSPage() {
       setIsProcessing(false)
     }
   }
+
+  // Listen to network status & keyboard shortcuts
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        barcodeInputRef.current?.focus()
+        barcodeInputRef.current?.select()
+      } else if (e.key === 'F9') {
+        e.preventDefault()
+        if (cart.length > 0 && !isProcessing) {
+          handleCheckout()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [cart, isProcessing, grandTotal, paymentMethod, customerName, customerPhone, paidNow, notes])
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -430,13 +509,27 @@ export function POSPage() {
                   )}
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-[10px] text-slate-400 font-semibold truncate max-w-[100px]">
-                        {product.sku}
-                      </span>
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                        {product.category}
-                      </span>
+                    {/* Thumbnail photo or code */}
+                    <div className="flex items-center gap-2 mb-1.5">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700/50 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/40 text-purple-600 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                          {product.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="font-mono text-[10px] text-slate-400 font-semibold block truncate">
+                          {product.sku}
+                        </span>
+                        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+                          {product.category}
+                        </span>
+                      </div>
                     </div>
 
                     <h3 className="font-semibold text-xs tracking-tight text-slate-900 dark:text-white line-clamp-2 mt-1">
@@ -453,10 +546,15 @@ export function POSPage() {
 
                   <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
                     <div>
-                      <span className="text-[10px] font-medium text-slate-400 block">Selling Price</span>
-                      <span className="font-bold text-xs text-purple-500 font-mono">
+                      <span className="text-[10px] font-medium text-slate-400 block">Retail Price</span>
+                      <span className="font-bold text-xs text-purple-500 font-mono block">
                         {formatCurrency(product.suggestedSellingPrice || 0)}
                       </span>
+                      {product.wholesalePrice && (
+                        <span className="text-[9px] font-semibold text-slate-500 font-mono block">
+                          Wholesale: {formatCurrency(product.wholesalePrice)} /ctn
+                        </span>
+                      )}
                     </div>
 
                     <div className="text-right">
@@ -468,7 +566,7 @@ export function POSPage() {
                             : 'text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {product.totalStock} {product.unit || 'pcs'}
+                        {formatStockPieces(product.totalStock, product.piecesPerCarton)}
                       </span>
                     </div>
                   </div>
@@ -542,8 +640,22 @@ export function POSPage() {
                           <h4 className="text-xs font-semibold tracking-tight text-slate-900 dark:text-white truncate mt-0.5">
                             {item.productName}
                           </h4>
-                          <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
-                            <span>{formatCurrency(effectivePrice)} each</span>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5 flex-wrap">
+                            <span>{formatCurrency(effectivePrice)}</span>
+                            {item.piecesPerCarton && item.piecesPerCarton > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleUnitType(item.productId)}
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                                  item.unitType === 'ctn'
+                                    ? 'bg-purple-600 text-white border-purple-600'
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                }`}
+                                title="Click to toggle between loose piece and whole carton pricing"
+                              >
+                                {item.unitType === 'ctn' ? `Carton (${item.piecesPerCarton} pcs)` : 'Piece (pc)'}
+                              </button>
+                            )}
                             {item.customPrice !== undefined && (
                               <span className="line-through text-[10px] opacity-60">
                                 ({formatCurrency(item.unitPrice)})
@@ -758,11 +870,12 @@ export function POSPage() {
               <span className="text-xs font-semibold tracking-tight text-slate-400 block">
                 Select Payment Method
               </span>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { id: 'cash', label: 'Cash', icon: DollarSign },
                   { id: 'transfer', label: 'Bank Transfer', icon: Building },
                   { id: 'card', label: 'POS / Card', icon: CreditCard },
+                  { id: 'credit', label: 'Credit (Debtor)', icon: Users },
                 ].map((m) => {
                   const Icon = m.icon
                   const isSelected = paymentMethod === m.id
@@ -782,6 +895,82 @@ export function POSPage() {
                   )
                 })}
               </div>
+
+              {/* Credit / Debtor Form Inputs */}
+              {paymentMethod === 'credit' && (
+                <div className="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/30 space-y-2.5 animate-fade-in text-xs">
+                  <div className="flex items-center gap-1.5 text-purple-400 font-semibold">
+                    <Users className="w-4 h-4" />
+                    <span>Credit Sale & Debtor Terms</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-300 block mb-1">
+                      Customer Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="e.g. Chief Emeka or Mama Nkechi"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-white focus:outline-none focus:ring-1 focus:ring-purple-500 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-300 block mb-1">
+                      Customer Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="e.g. 08012345678"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-white font-mono focus:outline-none focus:ring-1 focus:ring-purple-500 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-300 block mb-1">
+                        Deposit Paid Now (₦)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={grandTotal}
+                        value={paidNow}
+                        onChange={(e) => setPaidNow(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-white font-mono font-bold focus:outline-none focus:ring-1 focus:ring-purple-500 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-300 block mb-1">
+                        Deposit Method
+                      </label>
+                      <select
+                        value={paidNowMethod}
+                        onChange={(e) => setPaidNowMethod(e.target.value as typeof paidNowMethod)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-white text-xs focus:outline-none"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="transfer">Bank Transfer</option>
+                        <option value="card">POS / Card</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-1.5 border-t border-purple-500/20 text-xs">
+                    <span className="text-slate-400 font-medium">Balance Added to Debt:</span>
+                    <span className="font-mono font-bold text-amber-400 text-sm">
+                      {formatCurrency(Math.max(0, grandTotal - (parseFloat(paidNow) || 0)))}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Cash Tendered Calculator with Nigerian Naira Denominations */}
               {paymentMethod === 'cash' && (
@@ -835,6 +1024,16 @@ export function POSPage() {
                   </div>
                 </div>
               )}
+              {/* Optional Sale Note */}
+              <div className="pt-2">
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Optional sale note (e.g. delivery details, ref #)"
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
             </div>
 
             {/* Error banner */}

@@ -1,5 +1,16 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Product, Batch, Sale, SaleItem, AuditLog, Staff, AppSetting, ReceiptSnapshot } from './models'
+import type {
+  Product,
+  Batch,
+  Sale,
+  SaleItem,
+  AuditLog,
+  Staff,
+  AppSetting,
+  ReceiptSnapshot,
+  Debtor,
+  CreditPayment,
+} from './models'
 
 /**
  * PikaDatabase — Local-first IndexedDB schema via Dexie.js
@@ -18,6 +29,8 @@ export class PikaDatabase extends Dexie {
   staff!: EntityTable<Staff, 'id'>
   appSettings!: EntityTable<AppSetting, 'key'>
   receipts!: EntityTable<ReceiptSnapshot, 'id'>
+  debtors!: EntityTable<Debtor, 'id'>
+  creditPayments!: EntityTable<CreditPayment, 'id'>
 
   constructor() {
     super('PikaDB')
@@ -48,6 +61,12 @@ export class PikaDatabase extends Dexie {
     this.version(2).stores({
       // Receipts — indexed for receipt history search, date filtering, and thermal reprinting
       receipts: '++id, receiptNumber, saleId, transactionId, staffId, paymentMethod, timestamp',
+    })
+
+    this.version(3).stores({
+      // Debtors & Credit Management — indexed for fast debtor balance tracking and statement lookups
+      debtors: '++id, name, phone, balance, updatedAt',
+      creditPayments: '++id, debtorId, saleId, paymentMethod, timestamp',
     })
   }
 }
@@ -105,7 +124,18 @@ export async function initializeDatabase(): Promise<void> {
 export async function clearDatabase(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.products, db.batches, db.sales, db.saleItems, db.auditLogs, db.staff, db.appSettings, db.receipts],
+    [
+      db.products,
+      db.batches,
+      db.sales,
+      db.saleItems,
+      db.auditLogs,
+      db.staff,
+      db.appSettings,
+      db.receipts,
+      db.debtors,
+      db.creditPayments,
+    ],
     async () => {
       await db.products.clear()
       await db.batches.clear()
@@ -115,6 +145,8 @@ export async function clearDatabase(): Promise<void> {
       await db.staff.clear()
       await db.appSettings.clear()
       await db.receipts.clear()
+      await db.debtors.clear()
+      await db.creditPayments.clear()
     }
   )
 }

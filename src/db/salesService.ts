@@ -10,6 +10,7 @@ import {
   commitFIFODeduction,
   generateTransactionId,
 } from './fifoService'
+import { recordCreditSale } from './debtorService'
 
 /**
  * Sales Service
@@ -25,14 +26,17 @@ import {
 export interface ProcessSaleInput {
   cartItems: CartItem[]
   paymentMethod: PaymentMethod
-  discount: number
-  tax: number
-  staffId: string
-  staffName: string
+  discount?: number
+  tax?: number
+  staffId?: string
+  staffName?: string
   customerName?: string
+  customerPhone?: string
   notes?: string
   cashTendered?: number
   cashChange?: number
+  paidNow?: number
+  paidNowMethod?: 'cash' | 'transfer' | 'card'
   storeName?: string
 }
 
@@ -56,14 +60,17 @@ export async function processSale(
   const {
     cartItems,
     paymentMethod,
-    discount,
-    tax,
-    staffId,
-    staffName,
+    discount = 0,
+    tax = 0,
+    staffId = '1',
+    staffName = 'Cashier',
     customerName,
+    customerPhone,
     notes,
     cashTendered,
     cashChange,
+    paidNow,
+    paidNowMethod,
     storeName,
   } = input
 
@@ -81,13 +88,21 @@ export async function processSale(
           : item.unitPrice
       const priceVariance = Math.round((actualSoldPrice - listedPrice) * 100) / 100
 
-      const result = await calculateFIFOAllocation(item.productId, item.quantity)
+      const unitsToDeduct =
+        item.unitType === 'ctn' && item.piecesPerCarton && item.piecesPerCarton > 1
+          ? item.quantity * item.piecesPerCarton
+          : item.quantity
+
+      const result = await calculateFIFOAllocation(item.productId, unitsToDeduct)
 
       return {
         productId: item.productId,
         productName: item.productName,
         sku: item.sku,
         quantity: item.quantity,
+        unitType: item.unitType,
+        piecesPerCarton: item.piecesPerCarton,
+        unitsToDeduct,
         listedPrice,
         actualSoldPrice,
         priceVariance,
@@ -107,11 +122,13 @@ export async function processSale(
   }
 
   // Step 2: Calculate totals using actual sold prices
+  const safeDiscount = typeof discount === 'number' && !isNaN(discount) ? discount : 0
+  const safeTax = typeof tax === 'number' && !isNaN(tax) ? tax : 0
   const subtotal = allocationResults.reduce(
     (sum, r) => sum + r.actualSoldPrice * r.quantity,
     0
   )
-  const totalAmount = Math.max(0, Math.round((subtotal - discount + tax) * 100) / 100)
+  const totalAmount = Math.max(0, Math.round((subtotal - safeDiscount + safeTax) * 100) / 100)
   const totalCost = allocationResults.reduce(
     (sum, r) => sum + r.result.totalCost,
     0
@@ -130,12 +147,16 @@ export async function processSale(
   try {
     await db.transaction(
       'rw',
-      [db.sales, db.saleItems, db.batches, db.auditLogs, db.receipts],
+      [db.sales, db.saleItems, db.batches, db.auditLogs, db.receipts, db.debtors, db.creditPayments],
       async () => {
         const saleTimestamp = new Date()
 
+        const isCredit = paymentMethod === 'credit'
+        const effectivePaidNow = isCredit ? Math.min(totalAmount, Math.max(0, paidNow ?? 0)) : undefined
+        const effectiveBalanceDue = isCredit ? Math.max(0, totalAmount - (effectivePaidNow ?? 0)) : undefined
+
         // Create sale header
-        saleId = await db.sales.add({
+        saleId = (await db.sales.add({
           transactionId,
           totalAmount,
           subtotal: Math.round(subtotal * 100) / 100,
@@ -145,13 +166,16 @@ export async function processSale(
           staffId,
           staffName,
           customerName,
+          customerPhone,
+          paidAmount: effectivePaidNow,
+          balanceDue: effectiveBalanceDue,
           notes,
           timestamp: saleTimestamp,
-        })
+        })) as number
 
         // Create sale items and deduct stock for each cart item
         for (const allocResult of allocationResults) {
-          const { result, listedPrice, actualSoldPrice, priceVariance, varianceNote } = allocResult
+          const { result, listedPrice, actualSoldPrice, priceVariance, varianceNote, unitType, piecesPerCarton } = allocResult
 
           // Commit batch deductions
           await commitFIFODeduction(result.allocations)
@@ -169,6 +193,8 @@ export async function processSale(
               batchId: alloc.batchId,
               batchNumber: alloc.batchNumber,
               quantity: alloc.quantity,
+              unitType: unitType || 'pc',
+              piecesPerCarton,
               unitCostPrice: alloc.costPrice,
               unitSellingPrice: actualSoldPrice,
               listedPrice,
@@ -187,6 +213,8 @@ export async function processSale(
           productName: r.productName,
           sku: r.sku,
           quantity: r.quantity,
+          unitType: r.unitType,
+          piecesPerCarton: r.piecesPerCarton,
           unitPrice: r.actualSoldPrice,
           lineTotal: Math.round(r.actualSoldPrice * r.quantity * 100) / 100,
           listedPrice: r.listedPrice,
@@ -195,7 +223,7 @@ export async function processSale(
         }))
 
         // Automatically store permanent receipt snapshot
-        receiptId = await db.receipts.add({
+        receiptId = (await db.receipts.add({
           receiptNumber: transactionId,
           saleId: saleId!,
           transactionId,
@@ -203,6 +231,7 @@ export async function processSale(
           staffId,
           staffName,
           customerName,
+          customerPhone,
           paymentMethod,
           subtotal: Math.round(subtotal * 100) / 100,
           discount,
@@ -210,11 +239,28 @@ export async function processSale(
           totalAmount,
           cashTendered,
           cashChange,
+          paidNow: effectivePaidNow,
+          balanceDue: effectiveBalanceDue,
           itemCount: cartItems.length,
           items: receiptItems,
           notes,
           storeName,
-        })
+        })) as number
+
+        // If Credit sale, automatically register or update Debtor account
+        if (isCredit && customerName) {
+          await recordCreditSale({
+            saleId: saleId!,
+            customerName,
+            customerPhone,
+            totalAmount,
+            paidNow: effectivePaidNow,
+            paidNowMethod,
+            staffId,
+            staffName,
+            notes,
+          })
+        }
 
         // Audit log for sale completion
         await db.auditLogs.add({

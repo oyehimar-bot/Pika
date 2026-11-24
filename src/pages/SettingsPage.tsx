@@ -31,7 +31,7 @@ import type { BusinessMode } from '@/db/models'
 
 export function SettingsPage() {
   const { theme, toggleTheme } = useTheme()
-  const { allStaff, setIsPinModalOpen } = useAuth()
+  const { allStaff, setIsPinModalOpen, lockTill, lockMinutes, setLockMinutes } = useAuth()
   const {
     businessMode,
     setBusinessMode,
@@ -447,12 +447,43 @@ export function SettingsPage() {
                 Role-based access control with fast 4-digit PIN switching for store attendants and managers
               </p>
             </div>
-            <button
-              onClick={() => setIsPinModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={lockTill}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-semibold transition-colors"
+                title="Lock till screen immediately"
+              >
+                Lock Till Now
+              </button>
+              <button
+                onClick={() => setIsPinModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-md shadow-purple-600/20 transition-all"
+              >
+                Switch Active Staff
+              </button>
+            </div>
+          </div>
+
+          {/* Inactivity Auto-Lock Setting */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-y border-surface-100 dark:border-surface-800 my-3 gap-2">
+            <div>
+              <p className="text-xs font-semibold text-slate-900">
+                Inactivity Auto-Lock Timer
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Automatically lock the till and prompt for PIN when no cashier activity is detected
+              </p>
+            </div>
+            <select
+              value={lockMinutes}
+              onChange={(e) => setLockMinutes(parseInt(e.target.value, 10))}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
-              Switch Active Staff
-            </button>
+              <option value={5}>5 Minutes</option>
+              <option value={15}>15 Minutes (Recommended)</option>
+              <option value={30}>30 Minutes</option>
+              <option value={0}>Disabled (Never Auto-lock)</option>
+            </select>
           </div>
 
           <div className="divide-y divide-surface-100 dark:divide-surface-800 pt-2">

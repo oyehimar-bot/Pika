@@ -449,6 +449,9 @@ export function AuditPage() {
     staff_logout: 'security',
     data_export: 'security',
     settings_changed: 'security',
+    debtor_created: 'sales',
+    debtor_payment: 'sales',
+    debtor_updated: 'sales',
   }
 
   // Filtered logs

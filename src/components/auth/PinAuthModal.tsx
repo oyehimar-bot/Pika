@@ -17,6 +17,8 @@ export function PinAuthModal() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [failedAttempts, setFailedAttempts] = useState(0)
+  const [blockedUntil, setBlockedUntil] = useState<number | null>(null)
 
   useEffect(() => {
     if (isPinModalOpen) {
@@ -49,6 +51,11 @@ export function PinAuthModal() {
   if (!isPinModalOpen) return null
 
   const handleDigitPress = async (digit: string) => {
+    if (blockedUntil && Date.now() < blockedUntil) {
+      const remainingSec = Math.ceil((blockedUntil - Date.now()) / 1000)
+      setError(`Too many wrong attempts. Locked for ${remainingSec}s.`)
+      return
+    }
     if (pin.length >= 4 || isSubmitting) return
     const newPin = pin + digit
     setPin(newPin)
@@ -84,8 +91,18 @@ export function PinAuthModal() {
 
       if (res.success) {
         setIsPinModalOpen(false)
+        setFailedAttempts(0)
+        setBlockedUntil(null)
       } else {
-        setError(res.error || 'Invalid PIN code.')
+        const nextFails = failedAttempts + 1
+        setFailedAttempts(nextFails)
+        if (nextFails >= 5) {
+          const blockTime = Date.now() + 60000
+          setBlockedUntil(blockTime)
+          setError('Too many wrong PIN attempts. Account locked for 60 seconds.')
+        } else {
+          setError(res.error || `Invalid PIN code. (${5 - nextFails} attempt(s) remaining)`)
+        }
         setPin('')
       }
     } catch (err: unknown) {
