@@ -16,6 +16,8 @@ export interface Product {
   reorderLevel: number
   barcode: string
   imageUrl?: string
+  piecesPerCarton?: number
+  wholesalePrice?: number
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -41,7 +43,7 @@ export interface Batch {
 
 // ─── Sale (Transaction Header) ──────────────────────────────────────────────
 
-export type PaymentMethod = 'cash' | 'transfer' | 'card'
+export type PaymentMethod = 'cash' | 'transfer' | 'card' | 'credit'
 
 export interface Sale {
   id?: number
@@ -54,6 +56,9 @@ export interface Sale {
   staffId: string
   staffName: string
   customerName?: string
+  customerPhone?: string
+  paidAmount?: number
+  balanceDue?: number
   notes?: string
   timestamp: Date
 }
@@ -68,6 +73,8 @@ export interface SaleItem {
   batchId: number
   batchNumber: string
   quantity: number
+  unitType?: 'pc' | 'ctn'
+  piecesPerCarton?: number
   unitCostPrice: number
   unitSellingPrice: number
   listedPrice?: number
@@ -91,12 +98,15 @@ export type AuditAction =
   | 'sale_voided'
   | 'discount_applied'
   | 'stock_adjustment'
+  | 'debtor_created'
+  | 'debtor_payment'
+  | 'debtor_updated'
   | 'staff_login'
   | 'staff_logout'
   | 'data_export'
   | 'settings_changed'
 
-export type AuditEntity = 'product' | 'batch' | 'sale' | 'staff' | 'system'
+export type AuditEntity = 'product' | 'batch' | 'sale' | 'staff' | 'debtor' | 'system'
 
 export interface AuditLog {
   id?: number
@@ -164,6 +174,8 @@ export interface CartItem {
   productName: string
   sku: string
   quantity: number
+  unitType?: 'pc' | 'ctn'
+  piecesPerCarton?: number
   unitPrice: number
   customPrice?: number
   varianceNote?: string
@@ -216,6 +228,8 @@ export interface ReceiptItemSnapshot {
   productName: string
   sku: string
   quantity: number
+  unitType?: 'pc' | 'ctn'
+  piecesPerCarton?: number
   unitPrice: number
   lineTotal: number
   listedPrice?: number
@@ -232,6 +246,7 @@ export interface ReceiptSnapshot {
   staffId: string
   staffName: string
   customerName?: string
+  customerPhone?: string
   paymentMethod: PaymentMethod
   subtotal: number
   discount: number
@@ -239,9 +254,38 @@ export interface ReceiptSnapshot {
   totalAmount: number
   cashTendered?: number
   cashChange?: number
+  paidNow?: number
+  balanceDue?: number
   itemCount: number
   items: ReceiptItemSnapshot[]
   notes?: string
   storeName?: string
 }
+
+// ─── Debtor & Credit Management (GTTG Inspired) ───────────────────────────
+
+export interface Debtor {
+  id?: number
+  name: string
+  phone: string
+  totalOwed: number
+  totalPaid: number
+  balance: number
+  lastPaymentDate?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CreditPayment {
+  id?: number
+  debtorId: number
+  saleId?: number
+  amount: number
+  paymentMethod: 'cash' | 'transfer' | 'card'
+  staffId: string
+  staffName: string
+  notes?: string
+  timestamp: Date
+}
+
 

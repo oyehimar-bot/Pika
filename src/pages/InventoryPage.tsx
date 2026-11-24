@@ -13,6 +13,7 @@ import {
   Sparkles,
   SlidersHorizontal,
   Check,
+  Tag,
 } from 'lucide-react'
 import type { ProductWithStock } from '@/db'
 import {
@@ -25,6 +26,7 @@ import { BatchModal } from '@/components/inventory/BatchModal'
 import { BatchListModal } from '@/components/inventory/BatchListModal'
 import { InvoiceImportModal } from '@/components/inventory/InvoiceImportModal'
 import { StockAdjustModal } from '@/components/inventory/StockAdjustModal'
+import { BarcodeLabelModal } from '@/components/inventory/BarcodeLabelModal'
 import { useAppSettings } from '@/context/AppSettingsContext'
 import { formatCurrency, formatNumber } from '@/utils/currency'
 
@@ -119,6 +121,8 @@ export function InventoryPage() {
   const [inspectingProduct, setInspectingProduct] = useState<ProductWithStock | null>(null)
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
   const [adjustingProduct, setAdjustingProduct] = useState<ProductWithStock | null>(null)
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false)
+  const [labelModalProduct, setLabelModalProduct] = useState<ProductWithStock | null>(null)
 
   // Click outside listeners
   useEffect(() => {
@@ -329,6 +333,19 @@ export function InventoryPage() {
           >
             <Layers className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">Receive Batch</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setLabelModalProduct(null)
+              setIsLabelModalOpen(true)
+            }}
+            disabled={!products || products.length === 0}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Generate & print thermal barcode/price stickers"
+          >
+            <Tag className="w-3.5 h-3.5 text-purple-600" />
+            <span className="hidden sm:inline">Print Labels</span>
           </button>
 
           <button
@@ -708,6 +725,18 @@ export function InventoryPage() {
 
                             <button
                               onClick={() => {
+                                setLabelModalProduct(p)
+                                setIsLabelModalOpen(true)
+                                setActiveMenuId(null)
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors font-medium"
+                            >
+                              <Tag className="w-3.5 h-3.5 text-purple-600" />
+                              <span>Print Barcode Label</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
                                 setInspectingProduct(p)
                                 setActiveMenuId(null)
                               }}
@@ -822,6 +851,14 @@ export function InventoryPage() {
         onClose={() => setAdjustingProduct(null)}
         batch={null}
         productName={adjustingProduct?.name || ''}
+      />
+
+      {/* Barcode & Price Sticker Label Printing Modal */}
+      <BarcodeLabelModal
+        isOpen={isLabelModalOpen}
+        onClose={() => setIsLabelModalOpen(false)}
+        products={products || []}
+        preselectedProduct={labelModalProduct}
       />
     </div>
   )

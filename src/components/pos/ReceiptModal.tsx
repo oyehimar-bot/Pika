@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Printer, X, Tag } from 'lucide-react'
+import { Printer, X, Tag, MessageSquare, Copy, Check } from 'lucide-react'
 import type { SaleWithItems } from '@/db'
 import { formatCurrency } from '@/utils/currency'
 import { useAppSettings } from '@/context/AppSettingsContext'
@@ -24,6 +24,7 @@ export function ReceiptModal({
 }: ReceiptModalProps) {
   const receiptRef = useRef<HTMLDivElement>(null)
   const { storeName } = useAppSettings()
+  const [copied, setCopied] = useState(false)
 
   if (!isOpen || !sale) return null
 
@@ -35,12 +36,65 @@ export function ReceiptModal({
     cash: 'CASH',
     transfer: 'BANK TRANSFER',
     card: 'POS / CARD',
+    credit: 'GIVEN ON CREDIT',
   }
 
   const dateFormatted = new Date(sale.timestamp).toLocaleString('en-NG', {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
+
+  // Format plain text receipt for WhatsApp and Clipboard
+  const getReceiptText = () => {
+    const lines = [
+      `*${(storeName || 'PIKA STORE').toUpperCase()}*`,
+      `Official Purchase Customer Receipt`,
+      `Receipt Ref: ${sale.transactionId}`,
+      `Date: ${dateFormatted}`,
+      `Cashier: ${sale.staffName}`,
+      sale.customerName ? `Customer: ${sale.customerName}` : '',
+      `--------------------------------`,
+      ...sale.items.map(
+        (i) => `${i.quantity}x ${i.productName} @ ${formatCurrency(i.unitSellingPrice)} = ${formatCurrency(i.lineTotal)}`
+      ),
+      `--------------------------------`,
+      sale.discount > 0 ? `Discount: -${formatCurrency(sale.discount)}` : '',
+      sale.tax > 0 ? `Tax/VAT: +${formatCurrency(sale.tax)}` : '',
+      `*TOTAL: ${formatCurrency(sale.totalAmount)}*`,
+      `Payment Method: ${paymentLabels[sale.paymentMethod] || sale.paymentMethod.toUpperCase()}`,
+      sale.paymentMethod === 'credit'
+        ? `Paid Now: ${formatCurrency(sale.paidAmount ?? 0)}\n*BALANCE DUE: ${formatCurrency(sale.balanceDue ?? sale.totalAmount)}*`
+        : '',
+      sale.paymentMethod === 'cash' && cashTendered !== undefined
+        ? `Cash Tendered: ${formatCurrency(cashTendered)}\nChange: ${formatCurrency(cashChange ?? 0)}`
+        : '',
+      `--------------------------------`,
+      `Thank you for your patronage!`,
+      `Goods sold in good condition are not returnable.`,
+    ]
+    return lines.filter(Boolean).join('\n')
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(getReceiptText())
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    } catch {
+      // Fallback
+    }
+  }
+
+  const getWhatsAppUrl = () => {
+    let phone = (sale.customerPhone || '').replace(/\D/g, '')
+    if (phone.length === 11 && phone.startsWith('0')) {
+      phone = '234' + phone.slice(1)
+    }
+    const text = getReceiptText()
+    return phone
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:block print:w-auto print:h-auto print:overflow-visible">
@@ -197,6 +251,18 @@ export function ReceiptModal({
                 {paymentLabels[sale.paymentMethod] || sale.paymentMethod.toUpperCase()}
               </span>
             </div>
+            {sale.paymentMethod === 'credit' && (
+              <>
+                <div className="flex justify-between text-gray-600">
+                  <span>Upfront Deposit Paid:</span>
+                  <span>{formatCurrency(sale.paidAmount ?? 0)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-red-600">
+                  <span>Remaining Balance Due:</span>
+                  <span>{formatCurrency(sale.balanceDue ?? (sale.totalAmount - (sale.paidAmount ?? 0)))}</span>
+                </div>
+              </>
+            )}
             {sale.paymentMethod === 'cash' && cashTendered !== undefined && (
               <>
                 <div className="flex justify-between text-gray-600">
@@ -228,19 +294,49 @@ export function ReceiptModal({
       </div>
 
         {/* Modal Controls (hidden during thermal printing) */}
-        <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex gap-2.5 no-print print:hidden">
+        <div className="p-4 border-t border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 flex flex-wrap gap-2 no-print print:hidden">
           <button
-            onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-xl border border-surface-300 dark:border-surface-700 text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-700 text-xs font-semibold transition-colors"
+            onClick={handleCopy}
+            className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            title="Copy formatted receipt text to clipboard"
           >
-            Close / New Sale
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-600">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-slate-500" />
+                <span>Copy</span>
+              </>
+            )}
           </button>
+
+          <a
+            href={getWhatsAppUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 min-w-[110px] inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
+            title="Share receipt via WhatsApp"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>WhatsApp</span>
+          </a>
+
           <button
             onClick={handlePrint}
-            className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/30 transition-all"
+            className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs transition-all"
           >
-            <Printer className="w-4 h-4" />
-            <span>Print Receipt</span>
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print</span>
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-full py-2 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors mt-1"
+          >
+            Close / New Sale
           </button>
         </div>
       </div>

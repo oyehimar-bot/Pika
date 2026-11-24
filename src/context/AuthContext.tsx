@@ -12,6 +12,9 @@ interface AuthContextType {
   allStaff: Staff[]
   isPinModalOpen: boolean
   setIsPinModalOpen: (open: boolean) => void
+  lockTill: () => void
+  lockMinutes: number
+  setLockMinutes: (minutes: number) => void
   switchStaffWithPin: (pin: string) => Promise<{ success: boolean; error?: string }>
   switchStaffByIdAndPin: (
     staffId: number,
@@ -35,6 +38,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentStaff, setCurrentStaff] = useState<Staff | null>(null)
   const [allStaff, setAllStaff] = useState<Staff[]>([])
   const [isPinModalOpen, setIsPinModalOpen] = useState(false)
+  const [lockMinutes, setLockMinutesState] = useState<number>(() => {
+    const saved = localStorage.getItem('pika-lock-minutes')
+    return saved !== null ? parseInt(saved, 10) : 15
+  })
+
+  const setLockMinutes = (minutes: number) => {
+    setLockMinutesState(minutes)
+    localStorage.setItem('pika-lock-minutes', String(minutes))
+  }
+
+  const lockTill = () => {
+    setIsPinModalOpen(true)
+  }
+
+  // Idle Activity Watcher (GTTG Inactivity Protection)
+  useEffect(() => {
+    if (lockMinutes <= 0) return
+
+    let lastActivity = Date.now()
+    const updateActivity = () => {
+      lastActivity = Date.now()
+    }
+
+    const events = ['pointerdown', 'keydown', 'touchstart']
+    events.forEach((ev) => window.addEventListener(ev, updateActivity, { passive: true }))
+
+    const interval = setInterval(() => {
+      if (!isPinModalOpen && Date.now() - lastActivity > lockMinutes * 60 * 1000) {
+        lockTill()
+      }
+    }, 15000)
+
+    return () => {
+      events.forEach((ev) => window.removeEventListener(ev, updateActivity))
+      clearInterval(interval)
+    }
+  }, [lockMinutes, isPinModalOpen])
 
   // Load all staff and active staff on mount
   useEffect(() => {
@@ -158,6 +198,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         allStaff,
         isPinModalOpen,
         setIsPinModalOpen,
+        lockTill,
+        lockMinutes,
+        setLockMinutes,
         switchStaffWithPin,
         switchStaffByIdAndPin,
         hasRole,

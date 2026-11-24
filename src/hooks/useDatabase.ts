@@ -7,6 +7,8 @@ import {
   getTodaySalesSummary,
   searchReceipts,
   getComprehensiveSalesAnalytics,
+  getDebtorStats,
+  getDebtorDetails,
 } from '@/db'
 import type {
   ProductWithStock,
@@ -18,6 +20,9 @@ import type {
   ReceiptFilterOptions,
   SalesTimeframePreset,
   SalesAnalyticsResult,
+  Debtor,
+  DebtorStats,
+  DebtorDetails,
 } from '@/db'
 
 /**
@@ -106,5 +111,30 @@ export function useSalesAnalytics(
     [preset, customStart?.toISOString(), customEnd?.toISOString()]
   )
 }
+
+/** Live query: list of all debtors ordered by outstanding balance */
+export function useDebtors(onlyOutstanding: boolean = false): Debtor[] | undefined {
+  return useLiveQuery(async () => {
+    let debtors = await db.debtors.toArray()
+    if (onlyOutstanding) {
+      debtors = debtors.filter((d) => d.balance > 0)
+    }
+    return debtors.sort((a, b) => b.balance - a.balance)
+  }, [onlyOutstanding])
+}
+
+/** Live query: debtor summary statistics */
+export function useDebtorStats(): DebtorStats | undefined {
+  return useLiveQuery(() => getDebtorStats())
+}
+
+/** Live query: detailed statement for a single debtor */
+export function useDebtorDetails(debtorId?: number): DebtorDetails | null | undefined {
+  return useLiveQuery(() => {
+    if (!debtorId) return null
+    return getDebtorDetails(debtorId)
+  }, [debtorId])
+}
+
 
 

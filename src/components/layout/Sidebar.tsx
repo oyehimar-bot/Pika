@@ -5,6 +5,7 @@ import {
   ShoppingCart,
   Receipt,
   BarChart3,
+  Users,
   Shield,
   Settings,
   LogOut,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useAppSettings } from '@/context/AppSettingsContext'
+import { useDebtorStats } from '@/hooks/useDatabase'
 
 interface SidebarProps {
   collapsed: boolean
@@ -28,6 +30,7 @@ const navItems = [
   { to: '/pos', label: 'Point of Sale', icon: ShoppingCart },
   { to: '/receipts', label: 'Receipt History', icon: Receipt },
   { to: '/sales', label: 'Report Analytics', icon: BarChart3 },
+  { to: '/debtors', label: 'Debtors & Credit', icon: Users, isDebtors: true },
   { to: '/audit', label: 'User Authentication', icon: Shield },
   { to: '/settings', label: 'Setting', icon: Settings },
 ]
@@ -36,6 +39,8 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
   const location = useLocation()
   const { setIsPinModalOpen } = useAuth()
   const { businessMode } = useAppSettings()
+  const debtorStats = useDebtorStats()
+  const activeDebtorsCount = debtorStats?.activeDebtorsCount || 0
 
   const sidebarClasses = [
     'fixed lg:relative inset-y-0 left-0 z-50 flex flex-col',
@@ -92,7 +97,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
 
       {/* Navigation links */}
       <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5">
-        {navItems.map(({ to, label, icon: Icon }) => {
+        {navItems.map(({ to, label, icon: Icon, isDebtors }) => {
           const isActive = location.pathname === to
 
           return (
@@ -101,7 +106,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               to={to}
               onClick={onMobileClose}
               className={[
-                'group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'group flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
@@ -109,14 +114,29 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               ].join(' ')}
               title={collapsed ? label : undefined}
             >
-              <Icon
-                className={[
-                  'w-5 h-5 flex-shrink-0 transition-colors',
-                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700',
-                ].join(' ')}
-              />
-              {!collapsed && (
-                <span className="truncate">{label}</span>
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon
+                  className={[
+                    'w-5 h-5 flex-shrink-0 transition-colors',
+                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700',
+                  ].join(' ')}
+                />
+                {!collapsed && (
+                  <span className="truncate">{label}</span>
+                )}
+              </div>
+
+              {!collapsed && isDebtors && activeDebtorsCount > 0 && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    isActive
+                      ? 'bg-white text-purple-700'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}
+                  title={`${activeDebtorsCount} customer(s) owing`}
+                >
+                  {activeDebtorsCount}
+                </span>
               )}
             </NavLink>
           )
