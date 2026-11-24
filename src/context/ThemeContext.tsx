@@ -24,7 +24,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Fallback if localStorage is inaccessible
       }
     }
-    return 'dark' // Default to dark mode per specification
+    return 'light' // Default to light mode per specification
   })
 
   useEffect(() => {

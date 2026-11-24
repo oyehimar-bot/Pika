@@ -7,10 +7,12 @@ import {
   BarChart3,
   Shield,
   Settings,
+  LogOut,
   ChevronLeft,
   ChevronRight,
   X,
 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 import { useAppSettings } from '@/context/AppSettingsContext'
 
 interface SidebarProps {
@@ -25,58 +27,55 @@ const navItems = [
   { to: '/inventory', label: 'Inventory', icon: Package },
   { to: '/pos', label: 'Point of Sale', icon: ShoppingCart },
   { to: '/receipts', label: 'Receipt History', icon: Receipt },
-  { to: '/sales', label: 'Sales Analytics', icon: BarChart3 },
-  { to: '/audit', label: 'Audit Trail', icon: Shield },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/sales', label: 'Report Analytics', icon: BarChart3 },
+  { to: '/audit', label: 'User Authentication', icon: Shield },
+  { to: '/settings', label: 'Setting', icon: Settings },
 ]
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const location = useLocation()
+  const { setIsPinModalOpen } = useAuth()
   const { businessMode } = useAppSettings()
 
   const sidebarClasses = [
     'fixed lg:relative inset-y-0 left-0 z-50 flex flex-col',
-    'bg-white dark:bg-surface-900 border-r border-surface-200 dark:border-surface-800',
-    'transition-all duration-300 ease-in-out',
+    'bg-white border-r border-slate-200',
+    'transition-all duration-200 ease-in-out',
     'no-print print:hidden',
-    collapsed ? 'w-[72px]' : 'w-64',
+    collapsed ? 'w-20' : 'w-64',
     mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
   ].join(' ')
 
   return (
     <aside className={sidebarClasses}>
-      {/* Logo area */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-surface-200 dark:border-surface-800">
+      {/* Brand Header */}
+      <div className="flex items-center justify-between h-20 px-6 border-b border-slate-100">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative flex-shrink-0">
             <img
               src="/pika-logo.png"
               alt="Pika"
-              className="w-9 h-9 rounded-lg object-contain"
+              className="w-8 h-8 rounded-lg object-contain"
             />
-            <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-br from-pika-500 to-pika-700 opacity-20 blur-sm -z-10" />
           </div>
           {!collapsed && (
-            <div className="animate-fade-in min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-pika-500 to-pika-700 bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold tracking-tight text-slate-900">
                   Pika
-                </h1>
+                </span>
                 <span
-                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider ${
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
                     businessMode === 'no_expiry'
-                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-300/40'
+                      ? 'bg-sky-50 text-sky-600 border border-sky-200'
                       : businessMode === 'expiry_only'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/40'
-                      : 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-300/40'
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      : 'bg-purple-50 text-purple-600 border border-purple-200'
                   }`}
                 >
                   {businessMode === 'no_expiry' ? 'Durable' : businessMode === 'expiry_only' ? 'Perishable' : 'Hybrid'}
                 </span>
               </div>
-              <p className="text-[10px] font-medium text-surface-500 dark:text-surface-400 tracking-wider uppercase">
-                Inventory
-              </p>
             </div>
           )}
         </div>
@@ -84,14 +83,15 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
         {/* Mobile close button */}
         <button
           onClick={onMobileClose}
-          className="p-1.5 rounded-lg text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 lg:hidden transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden transition-colors"
+          aria-label="Close sidebar"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      {/* Navigation links */}
+      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5">
         {navItems.map(({ to, label, icon: Icon }) => {
           const isActive = location.pathname === to
 
@@ -101,47 +101,59 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: Side
               to={to}
               onClick={onMobileClose}
               className={[
-                'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
-                'transition-all duration-200',
+                'group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-gradient-to-r from-pika-600 to-pika-700 text-white shadow-lg shadow-pika-700/25'
-                  : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-surface-900 dark:hover:text-surface-100',
-                collapsed ? 'justify-center' : '',
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
+                collapsed ? 'justify-center px-0' : '',
               ].join(' ')}
               title={collapsed ? label : undefined}
             >
               <Icon
                 className={[
-                  'w-5 h-5 flex-shrink-0 transition-transform duration-200',
-                  !isActive ? 'group-hover:scale-110' : '',
+                  'w-5 h-5 flex-shrink-0 transition-colors',
+                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700',
                 ].join(' ')}
               />
               {!collapsed && (
-                <span className="truncate animate-fade-in">{label}</span>
-              )}
-              {isActive && !collapsed && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/80 animate-scale-in" />
+                <span className="truncate">{label}</span>
               )}
             </NavLink>
           )
         })}
       </nav>
 
-      {/* Collapse toggle (desktop only) */}
-      <div className="hidden lg:flex items-center justify-center p-3 border-t border-surface-200 dark:border-surface-800">
+      {/* Bottom Section: Logout & Collapse */}
+      <div className="p-4 border-t border-slate-200 space-y-2">
+        {/* Logout button */}
         <button
-          onClick={onToggle}
-          className="p-2 rounded-lg text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 hover:text-pika-600 transition-all duration-200"
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={() => setIsPinModalOpen(true)}
+          className={[
+            'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium',
+            'text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors',
+            collapsed ? 'justify-center px-0' : '',
+          ].join(' ')}
+          title="Logout / Switch Staff Session"
         >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
+          <LogOut className="w-5 h-5 flex-shrink-0 text-slate-400" />
+          {!collapsed && <span>Logout</span>}
         </button>
+
+        {/* Collapse toggle (desktop only) */}
+        <div className="hidden lg:flex items-center justify-end pt-1">
+          <button
+            onClick={onToggle}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
     </aside>
   )
 }
-
